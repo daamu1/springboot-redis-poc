@@ -6,7 +6,7 @@ package org.damu.exception;
  * Controller catches them and maps to HTTP status codes.
  * This keeps HTTP concerns OUT of the service layer.
  */
-public  class RateLimitExceededException extends RuntimeException {
+public class RateLimitExceededException extends RuntimeException {
     public RateLimitExceededException(String message) {
         super(message);
     }

@@ -20,15 +20,6 @@ import java.util.UUID;
  * ✅ Calling OrderService (ONE dependency only)
  * ✅ Mapping results to HTTP responses
  * ✅ Mapping domain exceptions to HTTP status codes
- * <p>
- * WHAT THIS CLASS MUST NEVER DO:
- * ❌ Know Redis exists
- * ❌ Call cache/queue/pubsub/analytics services directly
- * ❌ Contain business logic (if/else on order data)
- * ❌ Build Order objects
- * <p>
- * Before (wrong):  Controller → CacheService, QueueService, RateLimiter...
- * After  (correct): Controller → OrderService → everything else
  */
 @RestController
 @RequestMapping("/api/orders")
@@ -93,7 +84,6 @@ public class OrderController {
     }
 
 
-
     /**
      * POST /api/orders/queue/process-next — pull and process next order
      */
@@ -105,7 +95,6 @@ public class OrderController {
         }
         return ResponseEntity.ok(Map.of("message", "Processed successfully", "orderNumber", order.getOrderNumber()));
     }
-
 
 
     /**
