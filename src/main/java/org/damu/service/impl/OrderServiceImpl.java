@@ -47,18 +47,11 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
-
-    // ── Redis-specific services injected here, NOT in the controller ──
     private final OrderCacheService cacheService;
     private final OrderQueueService queueService;
     private final OrderRateLimiterService rateLimiter;
     private final OrderPubSubService pubSubService;
     private final OrderAnalyticsService analyticsService;
-
-    // ══════════════════════════════════════════════════════════════
-    //  PLACE ORDER — Full Redis orchestration
-    //  Touches: UC5 → UC10 → UC6 → UC3 → UC7 → UC11 → UC1 → UC2 → UC9
-    // ══════════════════════════════════════════════════════════════
 
     /**
      * Place a new order — every Redis use case fires here.
@@ -67,24 +60,11 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public PlaceOrderResult placeOrder(Long userId, String customerName, String idempotencyKey) {
-
-        // ── UC5: Rate Limit ────────────────────────────────────────
-        // Max 5 orders per minute per user — enforced via Redis INCR counter.
-        // Must be FIRST — reject early before doing any real work.
         if (!rateLimiter.allowPlaceOrder(userId, 5)) {
             log.warn("Rate limit exceeded for userId={}", userId);
             throw new RateLimitExceededException("Too many orders. Max 5 per minute.");
         }
-
-        // ── UC10 + UC6: Idempotency + Distributed Lock ────────────
-        // processWithIdempotency internally:
-        //   1. Checks if idempotencyKey already processed → return cached result
-        //   2. Acquires distributed lock  → prevents double-submit
-        //   3. Executes supplier          → actual order creation (below)
-        //   4. Caches result for 24h      → same key = same response on retry
-        //   5. Releases lock
         String orderNumber = analyticsService.processWithIdempotency(idempotencyKey, userId, () -> createAndPersistOrder(userId, customerName));
-
         log.info("Order placed: orderNumber={} userId={}", orderNumber, userId);
         return new PlaceOrderResult(orderNumber, idempotencyKey);
     }
@@ -97,37 +77,27 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public String createAndPersistOrder(Long userId, String customerName) {
         Order order = buildOrder(userId, customerName);
-
         // ── UC3: Enqueue for async processing ─────────────────────
         // Redis List queue — consumer thread processes payment, updates DB.
         // This keeps the HTTP response fast — we don't block on all that.
         queueService.enqueueOrder(order);
-
         // ── UC7: Publish status change event ─────────────────────
         // Email service, WebSocket gateway, analytics all listen.
         // OrderService doesn't know or care who — loose coupling.
         pubSubService.publishOrderStatusChange(order, null);
-
         // ── UC11: Increment live counters (atomic INCR — no DB write)
         analyticsService.recordOrderPlaced(order);
         analyticsService.trackUniqueCustomer(userId);
-
         // ── UC1: Cache full order JSON (dynamic TTL by status) ────
         cacheService.cacheOrder(order);
-
         // ── UC2: Store as Hash for partial field reads ────────────
         // Status-tracking page only needs 2 fields — HGET, not full JSON
         cacheService.saveOrderAsHash(order);
-
         // ── UC9: Update customer spend leaderboard ────────────────
         analyticsService.recordOrderForLeaderboard(order);
-
         return order.getOrderNumber();
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  GET ORDER
-    // ══════════════════════════════════════════════════════════════
 
     /**
      * Fetch order by ID — cache-aside with dynamic TTL.
@@ -148,10 +118,6 @@ public class OrderServiceImpl implements OrderService {
         return Map.of("orderId", orderId, "status", status != null ? status : "NOT_FOUND");
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  UPDATE STATUS
-    // ══════════════════════════════════════════════════════════════
-
     /**
      * Update order status.
      * - Updates Hash field directly (no full object rewrite)
@@ -162,20 +128,12 @@ public class OrderServiceImpl implements OrderService {
     public void updateOrderStatus(Long orderId, OrderStatus newStatus, String reason) {
         Order order = cacheService.getOrderWithDynamicTtl(orderId);
         OrderStatus oldStatus = order.getStatus();
-
         cacheService.updateOrderStatus(orderId, newStatus);
-
         order.setStatus(newStatus);
         order.setStatusReason(reason);
         pubSubService.publishOrderStatusChange(order, oldStatus);
-
         log.info("Order {} status: {} → {}", orderId, oldStatus, newStatus);
     }
-
-    // ══════════════════════════════════════════════════════════════
-    //  QUEUE MANAGEMENT (UC3)
-    // ══════════════════════════════════════════════════════════════
-
     @Override
     public Map<String, Object> getQueueDepth() {
         return Map.of("pending", queueService.getQueueDepth(), "scheduled", queueService.getScheduledCount());
@@ -195,9 +153,6 @@ public class OrderServiceImpl implements OrderService {
         return order;
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  CART (UC8)
-    // ══════════════════════════════════════════════════════════════
     @Override
     public Map<String, Object> addToCart(Long userId, Long productId, int quantity) {
         pubSubService.addToCart(userId, productId, quantity);
@@ -214,11 +169,6 @@ public class OrderServiceImpl implements OrderService {
     public void clearCart(Long userId) {
         pubSubService.clearCart(userId);
     }
-
-    // ══════════════════════════════════════════════════════════════
-    //  AUTH TOKEN (UC8)
-    // ══════════════════════════════════════════════════════════════
-
     /**
      * Create auth token post-login. Stored in Redis Hash, 24h sliding TTL.
      */
@@ -243,10 +193,6 @@ public class OrderServiceImpl implements OrderService {
         log.info("Token revoked: {}", token.substring(0, 8));
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  ANALYTICS (UC9, UC11)
-    // ══════════════════════════════════════════════════════════════
-
     /**
      * Top N customers by total spend — ZSet ZREVRANGE with scores.
      */
@@ -265,10 +211,6 @@ public class OrderServiceImpl implements OrderService {
         return stats;
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  PRIVATE HELPERS
-    // ══════════════════════════════════════════════════════════════
-
     private Order buildOrder(Long userId, String customerName) {
         Order order = Order.create(userId, customerName, customerName + "@example.com");
         order.setId(System.currentTimeMillis());
@@ -285,11 +227,5 @@ public class OrderServiceImpl implements OrderService {
         order.recalculate();
         return order;
     }
-
-    // ══════════════════════════════════════════════════════════════
-    //  RESULT TYPES & EXCEPTIONS
-    // ══════════════════════════════════════════════════════════════
-
-
 
 }

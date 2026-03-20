@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -90,6 +91,7 @@ public class OrderController {
     @PostMapping("/queue/process-next")
     public ResponseEntity<Map<String, Object>> processNext() {
         Order order = orderService.processNextInQueue(5);
+        Optional.ofNullable(order).ifPresent(order1 -> order1.setStatus(OrderStatus.PROCESSING));
         if (order == null) {
             return ResponseEntity.ok(Map.of("message", "Queue is empty"));
         }

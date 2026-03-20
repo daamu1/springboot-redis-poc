@@ -4,19 +4,15 @@ import org.damu.model.Order;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
-public interface   OrderAnalyticsService{
+public interface OrderAnalyticsService {
 
     void recordOrderForLeaderboard(Order order);
 
     List<Map<String, Object>> getTopCustomersBySpend(int topN);
 
-    Map<String, Object> getCustomerRank(Long userId, String name);
-
-    void recordMonthlySpend(Order order);
-
-    String processWithIdempotency(String idempotencyKey, Long userId,
-                                  java.util.function.Supplier<String> orderCreator);
+    String processWithIdempotency(String idempotencyKey, Long userId, Supplier<String> orderCreator);
 
     void recordOrderPlaced(Order order);
 

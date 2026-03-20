@@ -10,32 +10,31 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Supplier;
 
 /**
  * ════════════════════════════════════════════════════════════════
- *  USE CASE 9  — Order Leaderboard (Top Customers by Spend)
- *  USE CASE 10 — Idempotency Keys (Prevent Duplicate Orders)
- *  USE CASE 11 — Order Analytics Counters (Real-time Stats)
+ * USE CASE 9  — Order Leaderboard (Top Customers by Spend)
+ * USE CASE 10 — Idempotency Keys (Prevent Duplicate Orders)
+ * USE CASE 11 — Order Analytics Counters (Real-time Stats)
  * ════════════════════════════════════════════════════════════════
  * <p>
- *  These three patterns are used in EVERY large-scale order system.
- *  Master these, and you'll be ahead of 90% of developers.
+ * These three patterns are used in EVERY large-scale order system.
+ * Master these, and you'll be ahead of 90% of developers.
  */
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderAnalyticsServiceImpl implements OrderAnalyticsService {
-    private static final String LB_TOTAL_SPEND   = "leaderboard:customers:spend";
-    private static final String LB_ORDER_COUNT   = "leaderboard:customers:orders";
-    private static final String IDEMPOTENCY_KEY  = "idempotency:order:";
-    private static final String COUNTER_DAILY    = "counter:orders:daily:";
-    private static final String COUNTER_STATUS   = "counter:orders:status:";
-    private static final String COUNTER_REVENUE  = "counter:revenue:daily:";
-    private RedisTemplate<String, Object> redisTemplate;
+    private static final String LB_TOTAL_SPEND = "leaderboard:customers:spend";
+    private static final String LB_ORDER_COUNT = "leaderboard:customers:orders";
+    private static final String IDEMPOTENCY_KEY = "idempotency:order:";
+    private static final String COUNTER_DAILY = "counter:orders:daily:";
+    private static final String COUNTER_STATUS = "counter:orders:status:";
+    private static final String COUNTER_REVENUE = "counter:revenue:daily:";
+    private final RedisTemplate<String, Object> redisTemplate;
 
 
     /**
@@ -52,7 +51,6 @@ public class OrderAnalyticsServiceImpl implements OrderAnalyticsService {
     @Override
     public void recordOrderForLeaderboard(Order order) {
         double amount = order.getFinalAmount().doubleValue();
-        String customerId = "user:" + order.getUserId();
         String customerLabel = order.getCustomerName() + "#" + order.getUserId();
         Double newScore = redisTemplate.opsForZSet().incrementScore(LB_TOTAL_SPEND, customerLabel, amount);
         redisTemplate.opsForZSet().incrementScore(LB_ORDER_COUNT, customerLabel, 1);
@@ -74,49 +72,12 @@ public class OrderAnalyticsServiceImpl implements OrderAnalyticsService {
         int rank = 1;
 
         for (ZSetOperations.TypedTuple<Object> tuple : results) {
-            leaderboard.add(Map.of(
-                    "rank",     rank++,
-                    "customer", Objects.requireNonNull(tuple.getValue()),
-                    "spend",    String.format("₹%.2f", tuple.getScore()),
-                    "score", Objects.requireNonNull(tuple.getScore())
-            ));
+            leaderboard.add(Map.of("rank", rank++, "customer", Objects.requireNonNull(tuple.getValue()), "spend", String.format("₹%.2f", tuple.getScore()), "score", Objects.requireNonNull(tuple.getScore())));
         }
         return leaderboard;
     }
 
-    /**
-     * Get customer's rank and score in one operation.
-     * PRESHRANK = rank in descending order (rank 0 = highest spender)
-     */
-    @Override
-    public Map<String, Object> getCustomerRank(Long userId, String name) {
-        String customerLabel = name + "#" + userId;
-        Long rank  = redisTemplate.opsForZSet().reverseRank(LB_TOTAL_SPEND, customerLabel);
-        Double score = redisTemplate.opsForZSet().score(LB_TOTAL_SPEND, customerLabel);
-        return Map.of(
-                "rank",       rank != null ? rank + 1 : -1,
-                "totalSpend", score != null ? score : 0.0,
-                "customer",   customerLabel
-        );
-    }
 
-    /**
-     * Top 3 for THIS MONTH only.
-     * <p>
-     * Senior pattern: use a monthly key that auto-resets.
-     * Key: leaderboard:customers:spend:2024-01
-     * Expire it at end of month (or just let it live alongside annual board).
-     */
-    @Override
-    public void recordMonthlySpend(Order order) {
-        String monthKey = "leaderboard:monthly:" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
-        String customerLabel = order.getCustomerName() + "#" + order.getUserId();
-        redisTemplate.opsForZSet().incrementScore(monthKey, customerLabel, order.getFinalAmount().doubleValue());
-        Long size = redisTemplate.opsForZSet().size(monthKey);
-        if (size != null && size == 1) {
-            redisTemplate.expire(monthKey, Duration.ofDays(60));
-        }
-    }
     /**
      * IDEMPOTENCY — The unsung hero of reliable order systems.
      * <p>
@@ -149,8 +110,7 @@ public class OrderAnalyticsServiceImpl implements OrderAnalyticsService {
         }
 
         String lockKey = "lock:idempotency:" + idempotencyKey;
-        Boolean locked = redisTemplate.opsForValue()
-                .setIfAbsent(lockKey, "locked", Duration.ofSeconds(30));
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "locked", Duration.ofSeconds(30));
 
         if (!Boolean.TRUE.equals(locked)) {
             return "PROCESSING: Request is being processed, please retry in a moment";
@@ -192,9 +152,7 @@ public class OrderAnalyticsServiceImpl implements OrderAnalyticsService {
         String statusKey = COUNTER_STATUS + order.getStatus().name();
         redisTemplate.opsForValue().increment(statusKey);
         String revenueKey = COUNTER_REVENUE + today;
-        long amountInPaise = order.getFinalAmount()
-                .multiply(java.math.BigDecimal.valueOf(100))
-                .longValue();
+        long amountInPaise = order.getFinalAmount().multiply(java.math.BigDecimal.valueOf(100)).longValue();
         redisTemplate.opsForValue().increment(revenueKey, amountInPaise);
         redisTemplate.expire(revenueKey, Duration.ofDays(90));
 
@@ -209,7 +167,7 @@ public class OrderAnalyticsServiceImpl implements OrderAnalyticsService {
      */
     @Override
     public Map<String, Object> getLiveDashboard() {
-        String today =LocalDate.now().toString();
+        String today = LocalDate.now().toString();
 
         Object ordersToday = redisTemplate.opsForValue().get(COUNTER_DAILY + today);
         Object revenueToday = redisTemplate.opsForValue().get(COUNTER_REVENUE + today);
@@ -219,14 +177,7 @@ public class OrderAnalyticsServiceImpl implements OrderAnalyticsService {
 
         long revenuePaise = revenueToday != null ? Long.parseLong(revenueToday.toString()) : 0;
 
-        return Map.of(
-                "ordersToday",    ordersToday != null ? ordersToday : 0,
-                "revenueToday",   String.format("₹%.2f", revenuePaise / 100.0),
-                "pendingOrders",  pendingCount != null ? pendingCount : 0,
-                "processing",     processingCount != null ? processingCount : 0,
-                "delivered",      deliveredCount != null ? deliveredCount : 0,
-                "timestamp",      System.currentTimeMillis()
-        );
+        return Map.of("ordersToday", ordersToday != null ? ordersToday : 0, "revenueToday", String.format("₹%.2f", revenuePaise / 100.0), "pendingOrders", pendingCount != null ? pendingCount : 0, "processing", processingCount != null ? processingCount : 0, "delivered", deliveredCount != null ? deliveredCount : 0, "timestamp", System.currentTimeMillis());
     }
 
     /**
@@ -240,7 +191,7 @@ public class OrderAnalyticsServiceImpl implements OrderAnalyticsService {
      */
     @Override
     public void trackUniqueCustomer(Long userId) {
-        String today =LocalDate.now().toString();
+        String today = LocalDate.now().toString();
         String hllKey = "hll:unique:customers:" + today;
         redisTemplate.opsForHyperLogLog().add(hllKey, "user:" + userId);
         redisTemplate.expire(hllKey, Duration.ofDays(30));
