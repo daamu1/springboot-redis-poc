@@ -21,10 +21,7 @@ public interface OrderService {
     Map<String, Object> getQueueDepth();
 
     Order processNextInQueue(long timeoutSeconds);
-
-    // ══════════════════════════════════════════════════════════════
-    //  CART (UC8)
-    // ══════════════════════════════════════════════════════════════
+    
     Map<String, Object> addToCart(Long userId, Long productId, int quantity);
 
     Map<Object, Object> getCart(Long userId);

@@ -2,7 +2,12 @@ package org.damu.model;
 
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -29,8 +34,13 @@ import java.util.List;
  * We're using RedisTemplate with JSON for full control — much better
  * for real-world apps. You'll see both approaches in the services.
  */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Order implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
     private Long id;
     private String orderNumber;
@@ -55,8 +65,7 @@ public class Order implements Serializable {
     private String paymentMethod;
     private boolean isPaid;
     private int priority;
-    public Order() {
-    }
+
     public static Order create(Long userId, String customerName, String customerEmail) {
         Order o = new Order();
         o.userId = userId;
@@ -70,6 +79,7 @@ public class Order implements Serializable {
         o.discountAmount = BigDecimal.ZERO;
         return o;
     }
+
     /**
      * Business method — recalculate totals after adding items
      */
@@ -77,166 +87,6 @@ public class Order implements Serializable {
         this.totalAmount = items.stream().map(OrderItem::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
         this.finalAmount = totalAmount.subtract(discountAmount != null ? discountAmount : BigDecimal.ZERO);
         this.updatedAt = LocalDateTime.now();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getOrderNumber() {
-        return orderNumber;
-    }
-
-    public void setOrderNumber(String v) {
-        this.orderNumber = v;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long v) {
-        this.userId = v;
-    }
-
-    public String getCustomerName() {
-        return customerName;
-    }
-
-    public void setCustomerName(String v) {
-        this.customerName = v;
-    }
-
-    public String getCustomerEmail() {
-        return customerEmail;
-    }
-
-    public void setCustomerEmail(String v) {
-        this.customerEmail = v;
-    }
-
-    public List<OrderItem> getItems() {
-        return items;
-    }
-
-    public void setItems(List<OrderItem> v) {
-        this.items = v;
-    }
-
-    public BigDecimal getTotalAmount() {
-        return totalAmount;
-    }
-
-    public void setTotalAmount(BigDecimal v) {
-        this.totalAmount = v;
-    }
-
-    public BigDecimal getDiscountAmount() {
-        return discountAmount;
-    }
-
-    public void setDiscountAmount(BigDecimal v) {
-        this.discountAmount = v;
-    }
-
-    public BigDecimal getFinalAmount() {
-        return finalAmount;
-    }
-
-    public void setFinalAmount(BigDecimal v) {
-        this.finalAmount = v;
-    }
-
-    public OrderStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(OrderStatus v) {
-        this.status = v;
-    }
-
-    public String getStatusReason() {
-        return statusReason;
-    }
-
-    public void setStatusReason(String v) {
-        this.statusReason = v;
-    }
-
-    public String getShippingAddress() {
-        return shippingAddress;
-    }
-
-    public void setShippingAddress(String v) {
-        this.shippingAddress = v;
-    }
-
-    public String getCity() {
-        return city;
-    }
-
-    public void setCity(String v) {
-        this.city = v;
-    }
-
-    public String getPincode() {
-        return pincode;
-    }
-
-    public void setPincode(String v) {
-        this.pincode = v;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime v) {
-        this.createdAt = v;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime v) {
-        this.updatedAt = v;
-    }
-
-    public LocalDateTime getDeliveredAt() {
-        return deliveredAt;
-    }
-
-    public void setDeliveredAt(LocalDateTime v) {
-        this.deliveredAt = v;
-    }
-
-    public String getPaymentMethod() {
-        return paymentMethod;
-    }
-
-    public void setPaymentMethod(String v) {
-        this.paymentMethod = v;
-    }
-
-    public boolean isPaid() {
-        return isPaid;
-    }
-
-    public void setPaid(boolean v) {
-        this.isPaid = v;
-    }
-
-    public int getPriority() {
-        return priority;
-    }
-
-    public void setPriority(int v) {
-        this.priority = v;
     }
 
     @Override
