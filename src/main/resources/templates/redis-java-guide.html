@@ -1,399 +1,748 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Redis + Java — End-to-End Learning Guide</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@400;500;600;700&display=swap');
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis + Java — End-to-End Learning Guide</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@400;500;600;700&display=swap');
 
-  :root {
-    --bg: #0d0f1a;
-    --surface: #13161f;
-    --surface2: #1a1d2e;
-    --surface3: #20243a;
-    --border: #2a2f4a;
-    --accent: #ff4d4d;
-    --accent2: #ff9f43;
-    --teal: #00d2a0;
-    --blue: #4da6ff;
-    --purple: #a78bfa;
-    --text: #e8eaf0;
-    --muted: #8890b0;
-    --code-bg: #080a14;
-  }
+        :root {
+            --bg: #0d0f1a;
+            --surface: #13161f;
+            --surface2: #1a1d2e;
+            --surface3: #20243a;
+            --border: #2a2f4a;
+            --accent: #ff4d4d;
+            --accent2: #ff9f43;
+            --teal: #00d2a0;
+            --blue: #4da6ff;
+            --purple: #a78bfa;
+            --text: #e8eaf0;
+            --muted: #8890b0;
+            --code-bg: #080a14;
+        }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-  body {
-    font-family: 'Sora', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    line-height: 1.6;
-  }
+        body {
+            font-family: 'Sora', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
 
-  /* Header */
-  .hero {
-    background: linear-gradient(135deg, #0d0f1a 0%, #1a0a2e 50%, #0a1a2e 100%);
-    border-bottom: 1px solid var(--border);
-    padding: 48px 40px 36px;
-    position: relative;
-    overflow: hidden;
-  }
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: -60px; right: -60px;
-    width: 300px; height: 300px;
-    background: radial-gradient(circle, rgba(255,77,77,0.12) 0%, transparent 70%);
-    border-radius: 50%;
-  }
-  .hero::after {
-    content: '';
-    position: absolute;
-    bottom: -40px; left: 30%;
-    width: 200px; height: 200px;
-    background: radial-gradient(circle, rgba(0,210,160,0.08) 0%, transparent 70%);
-    border-radius: 50%;
-  }
-  .redis-logo {
-    display: inline-flex; align-items: center; gap: 10px;
-    margin-bottom: 18px;
-  }
-  .redis-icon {
-    width: 44px; height: 44px;
-    background: var(--accent);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 18px; color: #fff;
-    letter-spacing: -1px;
-  }
-  h1 { font-size: 2.4rem; font-weight: 700; line-height: 1.1; margin-bottom: 10px; }
-  h1 span { color: var(--accent); }
-  .subtitle { font-size: 1rem; color: var(--muted); max-width: 600px; }
-  .pill {
-    display: inline-block; background: rgba(255,77,77,0.15);
-    color: var(--accent); border: 1px solid rgba(255,77,77,0.3);
-    border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 600;
-    margin-top: 14px;
-  }
+        /* Header */
+        .hero {
+            background: linear-gradient(135deg, #0d0f1a 0%, #1a0a2e 50%, #0a1a2e 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 48px 40px 36px;
+            position: relative;
+            overflow: hidden;
+        }
 
-  /* Layout */
-  .container { display: flex; height: calc(100vh - 168px); }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -60px;
+            right: -60px;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255, 77, 77, 0.12) 0%, transparent 70%);
+            border-radius: 50%;
+        }
 
-  /* Sidebar */
-  .sidebar {
-    width: 260px; min-width: 260px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    overflow-y: auto;
-    padding: 16px 0;
-  }
-  .sidebar-section { margin-bottom: 8px; }
-  .sidebar-label {
-    font-size: 10px; font-weight: 600; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 1px;
-    padding: 8px 20px 4px;
-  }
-  .nav-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 20px; cursor: pointer;
-    font-size: 13px; color: var(--muted);
-    border-left: 3px solid transparent;
-    transition: all 0.15s;
-  }
-  .nav-item:hover { background: var(--surface2); color: var(--text); }
-  .nav-item.active {
-    background: rgba(255,77,77,0.08);
-    color: var(--accent); border-left-color: var(--accent);
-  }
-  .nav-badge {
-    margin-left: auto; font-size: 10px; padding: 2px 7px;
-    border-radius: 10px; font-weight: 600;
-  }
-  .badge-green { background: rgba(0,210,160,0.15); color: var(--teal); }
-  .badge-blue { background: rgba(77,166,255,0.15); color: var(--blue); }
-  .badge-purple { background: rgba(167,139,250,0.15); color: var(--purple); }
-  .badge-orange { background: rgba(255,159,67,0.15); color: var(--accent2); }
+        .hero::after {
+            content: '';
+            position: absolute;
+            bottom: -40px;
+            left: 30%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(0, 210, 160, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+        }
 
-  /* Main content */
-  .main {
-    flex: 1; overflow-y: auto;
-    padding: 32px 40px;
-  }
+        .redis-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
 
-  .section { display: none; }
-  .section.active { display: block; }
+        .redis-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--accent);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: #fff;
+            letter-spacing: -1px;
+        }
 
-  /* Section header */
-  .section-header {
-    display: flex; align-items: flex-start; gap: 16px;
-    margin-bottom: 28px; padding-bottom: 20px;
-    border-bottom: 1px solid var(--border);
-  }
-  .section-icon {
-    width: 48px; height: 48px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px; flex-shrink: 0;
-  }
-  .icon-red { background: rgba(255,77,77,0.15); }
-  .icon-green { background: rgba(0,210,160,0.15); }
-  .icon-blue { background: rgba(77,166,255,0.15); }
-  .icon-purple { background: rgba(167,139,250,0.15); }
-  .icon-orange { background: rgba(255,159,67,0.15); }
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 10px;
+        }
 
-  .section-header h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
-  .section-header p { color: var(--muted); font-size: 14px; }
+        h1 span {
+            color: var(--accent);
+        }
 
-  /* Cards */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-  .card-title {
-    font-size: 14px; font-weight: 600; margin-bottom: 12px;
-    display: flex; align-items: center; gap: 8px;
-    color: var(--text);
-  }
-  .dot { width: 8px; height: 8px; border-radius: 50%; }
-  .dot-red { background: var(--accent); }
-  .dot-green { background: var(--teal); }
-  .dot-blue { background: var(--blue); }
-  .dot-orange { background: var(--accent2); }
-  .dot-purple { background: var(--purple); }
+        .subtitle {
+            font-size: 1rem;
+            color: var(--muted);
+            max-width: 600px;
+        }
 
-  /* Code blocks */
-  .code-wrap { position: relative; margin: 14px 0; }
-  .code-label {
-    background: var(--surface3);
-    border: 1px solid var(--border);
-    border-bottom: none;
-    padding: 6px 14px;
-    font-size: 11px; font-weight: 600;
-    color: var(--muted); letter-spacing: 0.5px;
-    border-radius: 8px 8px 0 0;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .copy-btn {
-    background: none; border: none; color: var(--muted);
-    cursor: pointer; font-size: 11px; font-family: 'Sora', sans-serif;
-    padding: 2px 8px; border-radius: 4px; transition: all 0.15s;
-  }
-  .copy-btn:hover { background: var(--surface2); color: var(--text); }
-  pre {
-    background: var(--code-bg);
-    border: 1px solid var(--border);
-    border-radius: 0 0 8px 8px;
-    padding: 18px;
-    overflow-x: auto;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12.5px;
-    line-height: 1.7;
-  }
-  code { font-family: 'JetBrains Mono', monospace; }
-  .kw { color: #ff79c6; }
-  .cl { color: #50fa7b; }
-  .str { color: #f1fa8c; }
-  .cm { color: #6272a4; font-style: italic; }
-  .nu { color: #bd93f9; }
-  .fn { color: #8be9fd; }
-  .an { color: #ffb86c; }
+        .pill {
+            display: inline-block;
+            background: rgba(255, 77, 77, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(255, 77, 77, 0.3);
+            border-radius: 20px;
+            padding: 3px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 14px;
+        }
 
-  /* Info boxes */
-  .info-box {
-    border-radius: 8px; padding: 14px 16px; margin: 14px 0;
-    font-size: 13.5px; border-left: 3px solid;
-    display: flex; gap: 12px;
-  }
-  .info-box.tip { background: rgba(0,210,160,0.06); border-color: var(--teal); }
-  .info-box.warn { background: rgba(255,159,67,0.06); border-color: var(--accent2); }
-  .info-box.note { background: rgba(77,166,255,0.06); border-color: var(--blue); }
-  .info-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+        /* Layout */
+        .container {
+            display: flex;
+            height: calc(100vh - 168px);
+        }
 
-  /* Grid */
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            min-width: 260px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 16px 0;
+        }
 
-  /* Use case cards */
-  .usecase-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 18px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .usecase-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .usecase-card .icon { font-size: 28px; margin-bottom: 10px; }
-  .usecase-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-  .usecase-card p { font-size: 12px; color: var(--muted); }
+        .sidebar-section {
+            margin-bottom: 8px;
+        }
 
-  /* Steps */
-  .step { display: flex; gap: 16px; margin-bottom: 20px; }
-  .step-num {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: rgba(255,77,77,0.15); border: 1px solid rgba(255,77,77,0.3);
-    color: var(--accent); font-weight: 700; font-size: 13px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .step-body { flex: 1; }
-  .step-body h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
-  .step-body p { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+        .sidebar-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 8px 20px 4px;
+        }
 
-  /* Tags */
-  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-  .tag {
-    font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600;
-    border: 1px solid;
-  }
-  .tag-red { color: var(--accent); border-color: rgba(255,77,77,0.3); background: rgba(255,77,77,0.08); }
-  .tag-green { color: var(--teal); border-color: rgba(0,210,160,0.3); background: rgba(0,210,160,0.08); }
-  .tag-blue { color: var(--blue); border-color: rgba(77,166,255,0.3); background: rgba(77,166,255,0.08); }
-  .tag-purple { color: var(--purple); border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.08); }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 20px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--muted);
+            border-left: 3px solid transparent;
+            transition: all 0.15s;
+        }
 
-  h3 { font-size: 15px; font-weight: 600; margin: 20px 0 10px; color: var(--text); }
-  p { font-size: 14px; color: var(--muted); margin-bottom: 10px; }
-  ul, ol { padding-left: 20px; margin-bottom: 10px; }
-  li { font-size: 13.5px; color: var(--muted); margin-bottom: 5px; }
+        .nav-item:hover {
+            background: var(--surface2);
+            color: var(--text);
+        }
 
-  .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .nav-item.active {
+            background: rgba(255, 77, 77, 0.08);
+            color: var(--accent);
+            border-left-color: var(--accent);
+        }
 
-  @media (max-width: 768px) {
-    .grid2, .grid3 { grid-template-columns: 1fr; }
-    .container { flex-direction: column; height: auto; }
-    .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
-    h1 { font-size: 1.6rem; }
-  }
-</style>
+        .nav-badge {
+            margin-left: auto;
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .badge-green {
+            background: rgba(0, 210, 160, 0.15);
+            color: var(--teal);
+        }
+
+        .badge-blue {
+            background: rgba(77, 166, 255, 0.15);
+            color: var(--blue);
+        }
+
+        .badge-purple {
+            background: rgba(167, 139, 250, 0.15);
+            color: var(--purple);
+        }
+
+        .badge-orange {
+            background: rgba(255, 159, 67, 0.15);
+            color: var(--accent2);
+        }
+
+        /* Main content */
+        .main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px 40px;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* Section header */
+        .section-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .icon-red {
+            background: rgba(255, 77, 77, 0.15);
+        }
+
+        .icon-green {
+            background: rgba(0, 210, 160, 0.15);
+        }
+
+        .icon-blue {
+            background: rgba(77, 166, 255, 0.15);
+        }
+
+        .icon-purple {
+            background: rgba(167, 139, 250, 0.15);
+        }
+
+        .icon-orange {
+            background: rgba(255, 159, 67, 0.15);
+        }
+
+        .section-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .section-header p {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text);
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .dot-red {
+            background: var(--accent);
+        }
+
+        .dot-green {
+            background: var(--teal);
+        }
+
+        .dot-blue {
+            background: var(--blue);
+        }
+
+        .dot-orange {
+            background: var(--accent2);
+        }
+
+        .dot-purple {
+            background: var(--purple);
+        }
+
+        /* Code blocks */
+        .code-wrap {
+            position: relative;
+            margin: 14px 0;
+        }
+
+        .code-label {
+            background: var(--surface3);
+            border: 1px solid var(--border);
+            border-bottom: none;
+            padding: 6px 14px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            letter-spacing: 0.5px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 11px;
+            font-family: 'Sora', sans-serif;
+            padding: 2px 8px;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+
+        .copy-btn:hover {
+            background: var(--surface2);
+            color: var(--text);
+        }
+
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 0 0 8px 8px;
+            padding: 18px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12.5px;
+            line-height: 1.7;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .kw {
+            color: #ff79c6;
+        }
+
+        .cl {
+            color: #50fa7b;
+        }
+
+        .str {
+            color: #f1fa8c;
+        }
+
+        .cm {
+            color: #6272a4;
+            font-style: italic;
+        }
+
+        .nu {
+            color: #bd93f9;
+        }
+
+        .fn {
+            color: #8be9fd;
+        }
+
+        .an {
+            color: #ffb86c;
+        }
+
+        /* Info boxes */
+        .info-box {
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin: 14px 0;
+            font-size: 13.5px;
+            border-left: 3px solid;
+            display: flex;
+            gap: 12px;
+        }
+
+        .info-box.tip {
+            background: rgba(0, 210, 160, 0.06);
+            border-color: var(--teal);
+        }
+
+        .info-box.warn {
+            background: rgba(255, 159, 67, 0.06);
+            border-color: var(--accent2);
+        }
+
+        .info-box.note {
+            background: rgba(77, 166, 255, 0.06);
+            border-color: var(--blue);
+        }
+
+        .info-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        /* Grid */
+        .grid2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .grid3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        /* Use case cards */
+        .usecase-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .usecase-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .usecase-card .icon {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .usecase-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .usecase-card p {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* Steps */
+        .step {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 77, 77, 0.15);
+            border: 1px solid rgba(255, 77, 77, 0.3);
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .step-body {
+            flex: 1;
+        }
+
+        .step-body h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .step-body p {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        /* Tags */
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 10px 0;
+        }
+
+        .tag {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            border: 1px solid;
+        }
+
+        .tag-red {
+            color: var(--accent);
+            border-color: rgba(255, 77, 77, 0.3);
+            background: rgba(255, 77, 77, 0.08);
+        }
+
+        .tag-green {
+            color: var(--teal);
+            border-color: rgba(0, 210, 160, 0.3);
+            background: rgba(0, 210, 160, 0.08);
+        }
+
+        .tag-blue {
+            color: var(--blue);
+            border-color: rgba(77, 166, 255, 0.3);
+            background: rgba(77, 166, 255, 0.08);
+        }
+
+        .tag-purple {
+            color: var(--purple);
+            border-color: rgba(167, 139, 250, 0.3);
+            background: rgba(167, 139, 250, 0.08);
+        }
+
+        h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 20px 0 10px;
+            color: var(--text);
+        }
+
+        p {
+            font-size: 14px;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        ul, ol {
+            padding-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        li {
+            font-size: 13.5px;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .grid2, .grid3 {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+
+            h1 {
+                font-size: 1.6rem;
+            }
+        }
+    </style>
 </head>
 <body>
 
 <div class="hero">
-  <div class="redis-logo">
-    <div class="redis-icon">Re</div>
-    <span style="font-size: 1.1rem; font-weight: 600; color: var(--muted);">Redis × Java</span>
-  </div>
-  <h1>End-to-End <span>Redis</span> Guide</h1>
-  <p class="subtitle">Learn Redis from scratch through real Java code — data structures, caching, pub/sub, sessions, rate limiting, and more.</p>
-  <span class="pill">✦ 8 Use Cases · Full Code · Spring Boot Ready</span>
+    <div class="redis-logo">
+        <div class="redis-icon">Re</div>
+        <span style="font-size: 1.1rem; font-weight: 600; color: var(--muted);">Redis × Java</span>
+    </div>
+    <h1>End-to-End <span>Redis</span> Guide</h1>
+    <p class="subtitle">Learn Redis from scratch through real Java code — data structures, caching, pub/sub, sessions,
+        rate limiting, and more.</p>
+    <span class="pill">✦ 8 Use Cases · Full Code · Spring Boot Ready</span>
 </div>
 
 <div class="container">
-  <!-- Sidebar -->
-  <nav class="sidebar scrollbar-hide">
-    <div class="sidebar-section">
-      <div class="sidebar-label">Getting Started</div>
-      <div class="nav-item active" onclick="show('intro')">🏠 Introduction</div>
-      <div class="nav-item" onclick="show('setup')">⚙️ Setup & Config <span class="nav-badge badge-green">Step 1</span></div>
-      <div class="nav-item" onclick="show('jedis')">🔌 Jedis Basics</div>
-    </div>
-    <div class="sidebar-section">
-      <div class="sidebar-label">Data Structures</div>
-      <div class="nav-item" onclick="show('strings')">🔤 Strings & Keys <span class="nav-badge badge-blue">Core</span></div>
-      <div class="nav-item" onclick="show('hashes')">📦 Hashes</div>
-      <div class="nav-item" onclick="show('lists')">📋 Lists</div>
-      <div class="nav-item" onclick="show('sets')">🔵 Sets & Sorted Sets</div>
-    </div>
-    <div class="sidebar-section">
-      <div class="sidebar-label">Real Use Cases</div>
-      <div class="nav-item" onclick="show('caching')">⚡ Caching Layer <span class="nav-badge badge-green">Popular</span></div>
-      <div class="nav-item" onclick="show('sessions')">🔐 Session Store</div>
-      <div class="nav-item" onclick="show('ratelimit')">🛡️ Rate Limiting</div>
-      <div class="nav-item" onclick="show('pubsub')">📡 Pub / Sub</div>
-      <div class="nav-item" onclick="show('leaderboard')">🏆 Leaderboard <span class="nav-badge badge-purple">Fun</span></div>
-    </div>
-    <div class="sidebar-section">
-      <div class="sidebar-label">Production</div>
-      <div class="nav-item" onclick="show('spring')">🍃 Spring Boot + Redis <span class="nav-badge badge-orange">Full</span></div>
-      <div class="nav-item" onclick="show('patterns')">🧩 Best Practices</div>
-    </div>
-  </nav>
+    <!-- Sidebar -->
+    <nav class="sidebar scrollbar-hide">
+        <div class="sidebar-section">
+            <div class="sidebar-label">Getting Started</div>
+            <div class="nav-item active" onclick="show('intro')">🏠 Introduction</div>
+            <div class="nav-item" onclick="show('setup')">⚙️ Setup & Config <span
+                    class="nav-badge badge-green">Step 1</span></div>
+            <div class="nav-item" onclick="show('jedis')">🔌 Jedis Basics</div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Data Structures</div>
+            <div class="nav-item" onclick="show('strings')">🔤 Strings & Keys <span
+                    class="nav-badge badge-blue">Core</span></div>
+            <div class="nav-item" onclick="show('hashes')">📦 Hashes</div>
+            <div class="nav-item" onclick="show('lists')">📋 Lists</div>
+            <div class="nav-item" onclick="show('sets')">🔵 Sets & Sorted Sets</div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Real Use Cases</div>
+            <div class="nav-item" onclick="show('caching')">⚡ Caching Layer <span
+                    class="nav-badge badge-green">Popular</span></div>
+            <div class="nav-item" onclick="show('sessions')">🔐 Session Store</div>
+            <div class="nav-item" onclick="show('ratelimit')">🛡️ Rate Limiting</div>
+            <div class="nav-item" onclick="show('pubsub')">📡 Pub / Sub</div>
+            <div class="nav-item" onclick="show('leaderboard')">🏆 Leaderboard <span
+                    class="nav-badge badge-purple">Fun</span></div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Production</div>
+            <div class="nav-item" onclick="show('spring')">🍃 Spring Boot + Redis <span class="nav-badge badge-orange">Full</span>
+            </div>
+            <div class="nav-item" onclick="show('patterns')">🧩 Best Practices</div>
+        </div>
+    </nav>
 
-  <!-- Main -->
-  <main class="main">
+    <!-- Main -->
+    <main class="main">
 
-    <!-- ===================== INTRO ===================== -->
-    <div id="s-intro" class="section active">
-      <div class="section-header">
-        <div class="section-icon icon-red">🏠</div>
-        <div>
-          <h2>What is Redis?</h2>
-          <p>Remote Dictionary Server — blazing-fast in-memory data store</p>
-        </div>
-      </div>
+        <!-- ===================== INTRO ===================== -->
+        <div id="s-intro" class="section active">
+            <div class="section-header">
+                <div class="section-icon icon-red">🏠</div>
+                <div>
+                    <h2>What is Redis?</h2>
+                    <p>Remote Dictionary Server — blazing-fast in-memory data store</p>
+                </div>
+            </div>
 
-      <div class="grid3">
-        <div class="card" style="border-top: 2px solid var(--accent);">
-          <div class="card-title"><div class="dot dot-red"></div>In-Memory</div>
-          <p style="font-size:13px">All data lives in RAM. Reads/writes are microsecond-fast — 100k+ ops/sec is typical.</p>
-        </div>
-        <div class="card" style="border-top: 2px solid var(--teal);">
-          <div class="card-title"><div class="dot dot-green"></div>Persistent</div>
-          <p style="font-size:13px">Optional RDB snapshots + AOF logs. Survive restarts without losing data.</p>
-        </div>
-        <div class="card" style="border-top: 2px solid var(--blue);">
-          <div class="card-title"><div class="dot dot-blue"></div>Multi-Structure</div>
-          <p style="font-size:13px">Strings, Hashes, Lists, Sets, Sorted Sets, Streams, Bitmaps, HyperLogLog.</p>
-        </div>
-      </div>
+            <div class="grid3">
+                <div class="card" style="border-top: 2px solid var(--accent);">
+                    <div class="card-title">
+                        <div class="dot dot-red"></div>
+                        In-Memory
+                    </div>
+                    <p style="font-size:13px">All data lives in RAM. Reads/writes are microsecond-fast — 100k+ ops/sec
+                        is typical.</p>
+                </div>
+                <div class="card" style="border-top: 2px solid var(--teal);">
+                    <div class="card-title">
+                        <div class="dot dot-green"></div>
+                        Persistent
+                    </div>
+                    <p style="font-size:13px">Optional RDB snapshots + AOF logs. Survive restarts without losing
+                        data.</p>
+                </div>
+                <div class="card" style="border-top: 2px solid var(--blue);">
+                    <div class="card-title">
+                        <div class="dot dot-blue"></div>
+                        Multi-Structure
+                    </div>
+                    <p style="font-size:13px">Strings, Hashes, Lists, Sets, Sorted Sets, Streams, Bitmaps,
+                        HyperLogLog.</p>
+                </div>
+            </div>
 
-      <h3>When to Use Redis</h3>
-      <div class="grid2">
-        <div class="usecase-card" onclick="show('caching')">
-          <div class="icon">⚡</div>
-          <h3>Application Caching</h3>
-          <p>Cache DB queries, API responses, computed results. Reduce latency by 10–100x.</p>
+            <h3>When to Use Redis</h3>
+            <div class="grid2">
+                <div class="usecase-card" onclick="show('caching')">
+                    <div class="icon">⚡</div>
+                    <h3>Application Caching</h3>
+                    <p>Cache DB queries, API responses, computed results. Reduce latency by 10–100x.</p>
+                </div>
+                <div class="usecase-card" onclick="show('sessions')">
+                    <div class="icon">🔐</div>
+                    <h3>Session Management</h3>
+                    <p>Store user sessions with TTL. Works across multiple app instances.</p>
+                </div>
+                <div class="usecase-card" onclick="show('ratelimit')">
+                    <div class="icon">🛡️</div>
+                    <h3>Rate Limiting</h3>
+                    <p>Block brute force attacks. Throttle API calls per user or IP.</p>
+                </div>
+                <div class="usecase-card" onclick="show('pubsub')">
+                    <div class="icon">📡</div>
+                    <h3>Pub / Sub Messaging</h3>
+                    <p>Real-time notifications, live feeds, microservice communication.</p>
+                </div>
+                <div class="usecase-card" onclick="show('leaderboard')">
+                    <div class="icon">🏆</div>
+                    <h3>Leaderboards</h3>
+                    <p>Sorted Sets give you real-time rankings with O(log N) updates.</p>
+                </div>
+                <div class="usecase-card" onclick="show('lists')">
+                    <div class="icon">📋</div>
+                    <h3>Message Queues</h3>
+                    <p>LPUSH / BRPOP for simple producer-consumer task queues.</p>
+                </div>
+            </div>
         </div>
-        <div class="usecase-card" onclick="show('sessions')">
-          <div class="icon">🔐</div>
-          <h3>Session Management</h3>
-          <p>Store user sessions with TTL. Works across multiple app instances.</p>
-        </div>
-        <div class="usecase-card" onclick="show('ratelimit')">
-          <div class="icon">🛡️</div>
-          <h3>Rate Limiting</h3>
-          <p>Block brute force attacks. Throttle API calls per user or IP.</p>
-        </div>
-        <div class="usecase-card" onclick="show('pubsub')">
-          <div class="icon">📡</div>
-          <h3>Pub / Sub Messaging</h3>
-          <p>Real-time notifications, live feeds, microservice communication.</p>
-        </div>
-        <div class="usecase-card" onclick="show('leaderboard')">
-          <div class="icon">🏆</div>
-          <h3>Leaderboards</h3>
-          <p>Sorted Sets give you real-time rankings with O(log N) updates.</p>
-        </div>
-        <div class="usecase-card" onclick="show('lists')">
-          <div class="icon">📋</div>
-          <h3>Message Queues</h3>
-          <p>LPUSH / BRPOP for simple producer-consumer task queues.</p>
-        </div>
-      </div>
-    </div>
 
-    <!-- ===================== SETUP ===================== -->
-    <div id="s-setup" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-green">⚙️</div>
-        <div>
-          <h2>Setup & Configuration</h2>
-          <p>Install Redis, add Java dependencies, connect</p>
-        </div>
-      </div>
+        <!-- ===================== SETUP ===================== -->
+        <div id="s-setup" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-green">⚙️</div>
+                <div>
+                    <h2>Setup & Configuration</h2>
+                    <p>Install Redis, add Java dependencies, connect</p>
+                </div>
+            </div>
 
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-body">
-          <h4>Install Redis (Docker — recommended)</h4>
-          <p>Fastest way to get Redis running locally:</p>
-          <div class="code-wrap">
-            <div class="code-label">BASH <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-            <pre><code><span class="cm"># Pull and run Redis with password</span>
+            <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-body">
+                    <h4>Install Redis (Docker — recommended)</h4>
+                    <p>Fastest way to get Redis running locally:</p>
+                    <div class="code-wrap">
+                        <div class="code-label">BASH
+                            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                        </div>
+                        <pre><code><span class="cm"># Pull and run Redis with password</span>
 docker run -d \
   --name redis-dev \
   -p 6379:6379 \
@@ -403,17 +752,19 @@ docker run -d \
 <span class="cm"># Test connection</span>
 docker exec -it redis-dev redis-cli -a yourPassword PING
 <span class="cm"># Response: PONG</span></code></pre>
-          </div>
-        </div>
-      </div>
+                    </div>
+                </div>
+            </div>
 
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-body">
-          <h4>Add Maven Dependencies</h4>
-          <div class="code-wrap">
-            <div class="code-label">pom.xml <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-            <pre><code><span class="cm">&lt;!-- Jedis — direct Redis client --&gt;</span>
+            <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-body">
+                    <h4>Add Maven Dependencies</h4>
+                    <div class="code-wrap">
+                        <div class="code-label">pom.xml
+                            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                        </div>
+                        <pre><code><span class="cm">&lt;!-- Jedis — direct Redis client --&gt;</span>
 &lt;<span class="cl">dependency</span>&gt;
     &lt;<span class="cl">groupId</span>&gt;redis.clients&lt;/<span class="cl">groupId</span>&gt;
     &lt;<span class="cl">artifactId</span>&gt;jedis&lt;/<span class="cl">artifactId</span>&gt;
@@ -425,22 +776,25 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
     &lt;<span class="cl">groupId</span>&gt;org.springframework.boot&lt;/<span class="cl">groupId</span>&gt;
     &lt;<span class="cl">artifactId</span>&gt;spring-boot-starter-data-redis&lt;/<span class="cl">artifactId</span>&gt;
 &lt;/<span class="cl">dependency</span>&gt;</code></pre>
-          </div>
-        </div>
-      </div>
+                    </div>
+                </div>
+            </div>
 
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-body">
-          <h4>Connection Pool Setup</h4>
-          <div class="code-wrap">
-            <div class="code-label">RedisConfig.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-            <pre><code><span class="kw">import</span> redis.clients.jedis.*;
+            <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-body">
+                    <h4>Connection Pool Setup</h4>
+                    <div class="code-wrap">
+                        <div class="code-label">RedisConfig.java
+                            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                        </div>
+                        <pre><code><span class="kw">import</span> redis.clients.jedis.*;
 
 <span class="kw">public class</span> <span class="cl">RedisConfig</span> {
 
     <span class="kw">public static</span> <span class="cl">JedisPool</span> <span class="fn">createPool</span>() {
-        <span class="cl">JedisPoolConfig</span> config = <span class="kw">new</span> <span class="cl">JedisPoolConfig</span>();
+        <span class="cl">JedisPoolConfig</span> config = <span class="kw">new</span> <span
+                                    class="cl">JedisPoolConfig</span>();
         config.<span class="fn">setMaxTotal</span>(<span class="nu">20</span>);          <span class="cm">// max connections</span>
         config.<span class="fn">setMaxIdle</span>(<span class="nu">10</span>);           <span class="cm">// keep 10 idle</span>
         config.<span class="fn">setMinIdle</span>(<span class="nu">2</span>);            <span class="cm">// always keep 2 ready</span>
@@ -463,51 +817,65 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
         } <span class="cm">// connection returned to pool automatically</span>
     }
 }</code></pre>
-          </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box tip">
+                <div class="info-icon">💡</div>
+                <div><strong style="color:var(--teal)">Pool tip:</strong> Always use JedisPool (not single Jedis) in any
+                    multi-threaded app. Jedis is NOT thread-safe. Pool handles concurrency for you.
+                </div>
+            </div>
         </div>
-      </div>
 
-      <div class="info-box tip">
-        <div class="info-icon">💡</div>
-        <div><strong style="color:var(--teal)">Pool tip:</strong> Always use JedisPool (not single Jedis) in any multi-threaded app. Jedis is NOT thread-safe. Pool handles concurrency for you.</div>
-      </div>
-    </div>
-
-    <!-- ===================== JEDIS BASICS ===================== -->
-    <div id="s-jedis" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-red">🔌</div>
-        <div><h2>Jedis Client Basics</h2><p>Core commands you'll use every day</p></div>
-      </div>
-      <div class="code-wrap">
-        <div class="code-label">BasicRedisOperations.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="kw">try</span> (<span class="cl">Jedis</span> jedis = pool.<span class="fn">getResource</span>()) {
+        <!-- ===================== JEDIS BASICS ===================== -->
+        <div id="s-jedis" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-red">🔌</div>
+                <div><h2>Jedis Client Basics</h2>
+                    <p>Core commands you'll use every day</p></div>
+            </div>
+            <div class="code-wrap">
+                <div class="code-label">BasicRedisOperations.java
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="kw">try</span> (<span class="cl">Jedis</span> jedis = pool.<span class="fn">getResource</span>()) {
 
     <span class="cm">// ── SET / GET ──────────────────────────────────────────</span>
     jedis.<span class="fn">set</span>(<span class="str">"name"</span>, <span class="str">"Alice"</span>);
-    <span class="cl">String</span> name = jedis.<span class="fn">get</span>(<span class="str">"name"</span>);         <span class="cm">// "Alice"</span>
+    <span class="cl">String</span> name = jedis.<span class="fn">get</span>(<span
+                            class="str">"name"</span>);         <span class="cm">// "Alice"</span>
 
     <span class="cm">// SET with TTL (expire in 60 seconds)</span>
     jedis.<span class="fn">setex</span>(<span class="str">"token"</span>, <span class="nu">60</span>, <span class="str">"abc123"</span>);
-    <span class="kw">long</span> ttl = jedis.<span class="fn">ttl</span>(<span class="str">"token"</span>);            <span class="cm">// 60 (seconds left)</span>
+    <span class="kw">long</span> ttl = jedis.<span class="fn">ttl</span>(<span
+                            class="str">"token"</span>);            <span class="cm">// 60 (seconds left)</span>
 
     <span class="cm">// ── EXISTENCE & DELETE ────────────────────────────────</span>
-    <span class="kw">boolean</span> exists = jedis.<span class="fn">exists</span>(<span class="str">"name"</span>);    <span class="cm">// true</span>
+    <span class="kw">boolean</span> exists = jedis.<span class="fn">exists</span>(<span
+                            class="str">"name"</span>);    <span class="cm">// true</span>
     jedis.<span class="fn">del</span>(<span class="str">"name"</span>);                         <span class="cm">// delete key</span>
-    jedis.<span class="fn">expire</span>(<span class="str">"token"</span>, <span class="nu">120</span>);               <span class="cm">// update TTL</span>
+    jedis.<span class="fn">expire</span>(<span class="str">"token"</span>, <span
+                            class="nu">120</span>);               <span class="cm">// update TTL</span>
 
     <span class="cm">// ── COUNTERS ───────────────────────────────────────────</span>
     jedis.<span class="fn">set</span>(<span class="str">"visits"</span>, <span class="str">"0"</span>);
     jedis.<span class="fn">incr</span>(<span class="str">"visits"</span>);                     <span class="cm">// → 1 (atomic!)</span>
-    jedis.<span class="fn">incrBy</span>(<span class="str">"visits"</span>, <span class="nu">5</span>);               <span class="cm">// → 6</span>
-    jedis.<span class="fn">decr</span>(<span class="str">"visits"</span>);                     <span class="cm">// → 5</span>
+    jedis.<span class="fn">incrBy</span>(<span class="str">"visits"</span>, <span
+                            class="nu">5</span>);               <span class="cm">// → 6</span>
+    jedis.<span class="fn">decr</span>(<span class="str">"visits"</span>);                     <span
+                            class="cm">// → 5</span>
 
     <span class="cm">// ── MULTI-GET (pipeline-friendly) ─────────────────────</span>
-    jedis.<span class="fn">mset</span>(<span class="str">"k1"</span>, <span class="str">"v1"</span>, <span class="str">"k2"</span>, <span class="str">"v2"</span>);
-    <span class="cl">List</span>&lt;<span class="cl">String</span>&gt; vals = jedis.<span class="fn">mget</span>(<span class="str">"k1"</span>, <span class="str">"k2"</span>);
+    jedis.<span class="fn">mset</span>(<span class="str">"k1"</span>, <span class="str">"v1"</span>, <span class="str">"k2"</span>, <span
+                            class="str">"v2"</span>);
+    <span class="cl">List</span>&lt;<span class="cl">String</span>&gt; vals = jedis.<span class="fn">mget</span>(<span
+                            class="str">"k1"</span>, <span class="str">"k2"</span>);
 
     <span class="cm">// ── SET ONLY IF NOT EXISTS (lock pattern) ────────────</span>
-    <span class="kw">long</span> set = jedis.<span class="fn">setnx</span>(<span class="str">"lock:resource"</span>, <span class="str">"owner1"</span>);
+    <span class="kw">long</span> set = jedis.<span class="fn">setnx</span>(<span
+                            class="str">"lock:resource"</span>, <span class="str">"owner1"</span>);
     <span class="cm">// 1 = acquired, 0 = already locked</span>
 
     <span class="cm">// ── PIPELINE (batch commands, one round-trip) ─────────</span>
@@ -517,41 +885,51 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
     pipe.<span class="fn">set</span>(<span class="str">"c"</span>, <span class="str">"3"</span>);
     pipe.<span class="fn">sync</span>();   <span class="cm">// sends all 3 in one network call</span>
 }</code></pre>
-      </div>
-    </div>
+            </div>
+        </div>
 
-    <!-- ===================== STRINGS ===================== -->
-    <div id="s-strings" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-blue">🔤</div>
-        <div><h2>Strings & Key Design</h2><p>The fundamental data type + naming patterns</p></div>
-      </div>
-      <h3>Key Naming Convention</h3>
-      <div class="info-box note">
-        <div class="info-icon">📌</div>
-        <div>Use <strong style="color:var(--blue)">colon-separated namespaces</strong>: <code style="color:var(--teal)">entity:id:field</code> — e.g. <code>user:42:profile</code>, <code>product:101:price</code>, <code>session:abc123</code></div>
-      </div>
-      <div class="code-wrap">
-        <div class="code-label">StringOperations.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="kw">public class</span> <span class="cl">StringRedisService</span> {
+        <!-- ===================== STRINGS ===================== -->
+        <div id="s-strings" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-blue">🔤</div>
+                <div><h2>Strings & Key Design</h2>
+                    <p>The fundamental data type + naming patterns</p></div>
+            </div>
+            <h3>Key Naming Convention</h3>
+            <div class="info-box note">
+                <div class="info-icon">📌</div>
+                <div>Use <strong style="color:var(--blue)">colon-separated namespaces</strong>: <code
+                        style="color:var(--teal)">entity:id:field</code> — e.g. <code>user:42:profile</code>, <code>product:101:price</code>,
+                    <code>session:abc123</code></div>
+            </div>
+            <div class="code-wrap">
+                <div class="code-label">StringOperations.java
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="kw">public class</span> <span class="cl">StringRedisService</span> {
 
     <span class="cm">// Store JSON as string (common pattern)</span>
-    <span class="kw">public void</span> <span class="fn">cacheUserJson</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> userId, <span class="cl">String</span> json) {
-        <span class="cl">String</span> key = <span class="str">"user:"</span> + userId + <span class="str">":profile"</span>;
+    <span class="kw">public void</span> <span class="fn">cacheUserJson</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="kw">int</span> userId, <span class="cl">String</span> json) {
+        <span class="cl">String</span> key = <span class="str">"user:"</span> + userId + <span
+                            class="str">":profile"</span>;
         jedis.<span class="fn">setex</span>(key, <span class="nu">3600</span>, json); <span class="cm">// expires in 1 hour</span>
     }
 
     <span class="cm">// Atomic counter (page views, likes, etc.)</span>
-    <span class="kw">public long</span> <span class="fn">incrementPageViews</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> page) {
+    <span class="kw">public long</span> <span class="fn">incrementPageViews</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">String</span> page) {
         <span class="cl">String</span> key = <span class="str">"views:"</span> + page;
         <span class="kw">long</span> count = jedis.<span class="fn">incr</span>(key);
         <span class="cm">// Set expiry only on first increment (new key)</span>
-        <span class="kw">if</span> (count == <span class="nu">1</span>) jedis.<span class="fn">expire</span>(key, <span class="nu">86400</span>); <span class="cm">// 24h</span>
+        <span class="kw">if</span> (count == <span class="nu">1</span>) jedis.<span class="fn">expire</span>(key, <span
+                            class="nu">86400</span>); <span class="cm">// 24h</span>
         <span class="kw">return</span> count;
     }
 
     <span class="cm">// Distributed lock (simple version)</span>
-    <span class="kw">public boolean</span> <span class="fn">acquireLock</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> resource, <span class="cl">String</span> owner) {
+    <span class="kw">public boolean</span> <span class="fn">acquireLock</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="cl">String</span> resource, <span class="cl">String</span> owner) {
         <span class="cl">SetParams</span> params = <span class="cl">SetParams</span>.<span class="fn">setParams</span>()
             .<span class="fn">nx</span>()           <span class="cm">// NX = only set if Not eXists</span>
             .<span class="fn">ex</span>(<span class="nu">30</span>);        <span class="cm">// EX = expire in 30 seconds</span>
@@ -559,7 +937,8 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
         <span class="kw">return</span> <span class="str">"OK"</span>.<span class="fn">equals</span>(result);
     }
 
-    <span class="kw">public void</span> <span class="fn">releaseLock</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> resource, <span class="cl">String</span> owner) {
+    <span class="kw">public void</span> <span class="fn">releaseLock</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">String</span> resource, <span class="cl">String</span> owner) {
         <span class="cl">String</span> key = <span class="str">"lock:"</span> + resource;
         <span class="cm">// Only delete if WE own it (Lua script = atomic)</span>
         <span class="cl">String</span> script = <span class="str">"if redis.call('get',KEYS[1])==ARGV[1] "</span> +
@@ -567,102 +946,132 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
         jedis.<span class="fn">eval</span>(script, <span class="nu">1</span>, key, owner);
     }
 }</code></pre>
-      </div>
-    </div>
+            </div>
+        </div>
 
-    <!-- ===================== HASHES ===================== -->
-    <div id="s-hashes" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-orange">📦</div>
-        <div><h2>Hashes</h2><p>Like a Java Map stored under one key. Perfect for objects.</p></div>
-      </div>
-      <div class="info-box tip">
-        <div class="info-icon">💡</div>
-        <div>Use Hash when storing an <strong style="color:var(--teal)">object with multiple fields</strong>. Much more memory efficient than one String key per field.</div>
-      </div>
-      <div class="code-wrap">
-        <div class="code-label">HashOperations.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="kw">public class</span> <span class="cl">UserService</span> {
+        <!-- ===================== HASHES ===================== -->
+        <div id="s-hashes" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-orange">📦</div>
+                <div><h2>Hashes</h2>
+                    <p>Like a Java Map stored under one key. Perfect for objects.</p></div>
+            </div>
+            <div class="info-box tip">
+                <div class="info-icon">💡</div>
+                <div>Use Hash when storing an <strong style="color:var(--teal)">object with multiple fields</strong>.
+                    Much more memory efficient than one String key per field.
+                </div>
+            </div>
+            <div class="code-wrap">
+                <div class="code-label">HashOperations.java
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="kw">public class</span> <span class="cl">UserService</span> {
 
     <span class="cm">// Store a user object as Hash</span>
-    <span class="kw">public void</span> <span class="fn">saveUser</span>(<span class="cl">Jedis</span> jedis, <span class="cl">User</span> user) {
+    <span class="kw">public void</span> <span class="fn">saveUser</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">User</span> user) {
         <span class="cl">String</span> key = <span class="str">"user:"</span> + user.getId();
 
         <span class="cm">// HMSET — set multiple fields at once</span>
-        <span class="cl">Map</span>&lt;<span class="cl">String</span>, <span class="cl">String</span>&gt; fields = <span class="kw">new</span> <span class="cl">HashMap</span>&lt;&gt;();
+        <span class="cl">Map</span>&lt;<span class="cl">String</span>, <span class="cl">String</span>&gt; fields = <span
+                            class="kw">new</span> <span class="cl">HashMap</span>&lt;&gt;();
         fields.<span class="fn">put</span>(<span class="str">"name"</span>, user.getName());
         fields.<span class="fn">put</span>(<span class="str">"email"</span>, user.getEmail());
         fields.<span class="fn">put</span>(<span class="str">"role"</span>, user.getRole());
-        fields.<span class="fn">put</span>(<span class="str">"createdAt"</span>, <span class="cl">String</span>.<span class="fn">valueOf</span>(user.getCreatedAt()));
+        fields.<span class="fn">put</span>(<span class="str">"createdAt"</span>, <span class="cl">String</span>.<span
+                            class="fn">valueOf</span>(user.getCreatedAt()));
         jedis.<span class="fn">hset</span>(key, fields);
         jedis.<span class="fn">expire</span>(key, <span class="nu">7200</span>); <span class="cm">// 2 hours</span>
     }
 
     <span class="cm">// Get all fields of a user</span>
-    <span class="kw">public</span> <span class="cl">Map</span>&lt;<span class="cl">String</span>, <span class="cl">String</span>&gt; <span class="fn">getUser</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> userId) {
+    <span class="kw">public</span> <span class="cl">Map</span>&lt;<span class="cl">String</span>, <span class="cl">String</span>&gt; <span
+                            class="fn">getUser</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> userId) {
         <span class="kw">return</span> jedis.<span class="fn">hgetAll</span>(<span class="str">"user:"</span> + userId);
     }
 
     <span class="cm">// Get only specific fields (more efficient)</span>
-    <span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">String</span>&gt; <span class="fn">getUserBasic</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> userId) {
-        <span class="kw">return</span> jedis.<span class="fn">hmget</span>(<span class="str">"user:"</span> + userId, <span class="str">"name"</span>, <span class="str">"email"</span>);
+    <span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">String</span>&gt; <span class="fn">getUserBasic</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="kw">int</span> userId) {
+        <span class="kw">return</span> jedis.<span class="fn">hmget</span>(<span
+                            class="str">"user:"</span> + userId, <span class="str">"name"</span>, <span class="str">"email"</span>);
     }
 
     <span class="cm">// Update a single field without loading the whole object</span>
-    <span class="kw">public void</span> <span class="fn">updateUserRole</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> userId, <span class="cl">String</span> role) {
+    <span class="kw">public void</span> <span class="fn">updateUserRole</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="kw">int</span> userId, <span
+                            class="cl">String</span> role) {
         jedis.<span class="fn">hset</span>(<span class="str">"user:"</span> + userId, <span class="str">"role"</span>, role);
     }
 
     <span class="cm">// Increment a numeric field (e.g., login count)</span>
-    <span class="kw">public long</span> <span class="fn">incrementLoginCount</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> userId) {
-        <span class="kw">return</span> jedis.<span class="fn">hincrBy</span>(<span class="str">"user:"</span> + userId, <span class="str">"loginCount"</span>, <span class="nu">1</span>);
+    <span class="kw">public long</span> <span class="fn">incrementLoginCount</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="kw">int</span> userId) {
+        <span class="kw">return</span> jedis.<span class="fn">hincrBy</span>(<span class="str">"user:"</span> + userId, <span
+                            class="str">"loginCount"</span>, <span class="nu">1</span>);
     }
 
     <span class="cm">// Check field exists</span>
-    <span class="kw">public boolean</span> <span class="fn">hasEmail</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> userId) {
-        <span class="kw">return</span> jedis.<span class="fn">hexists</span>(<span class="str">"user:"</span> + userId, <span class="str">"email"</span>);
+    <span class="kw">public boolean</span> <span class="fn">hasEmail</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="kw">int</span> userId) {
+        <span class="kw">return</span> jedis.<span class="fn">hexists</span>(<span class="str">"user:"</span> + userId, <span
+                            class="str">"email"</span>);
     }
 }</code></pre>
-      </div>
-    </div>
+            </div>
+        </div>
 
-    <!-- ===================== LISTS ===================== -->
-    <div id="s-lists" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-purple">📋</div>
-        <div><h2>Lists</h2><p>Doubly-linked lists. Great for queues, feeds, and recent items.</p></div>
-      </div>
-      <div class="code-wrap">
-        <div class="code-label">ListOperations.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="kw">public class</span> <span class="cl">TaskQueueService</span> {
+        <!-- ===================== LISTS ===================== -->
+        <div id="s-lists" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-purple">📋</div>
+                <div><h2>Lists</h2>
+                    <p>Doubly-linked lists. Great for queues, feeds, and recent items.</p></div>
+            </div>
+            <div class="code-wrap">
+                <div class="code-label">ListOperations.java
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="kw">public class</span> <span class="cl">TaskQueueService</span> {
 
     <span class="cm">// ── QUEUE PATTERN (FIFO) ───────────────────────────────</span>
     <span class="cm">// Producer: push to left</span>
-    <span class="kw">public void</span> <span class="fn">enqueue</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> task) {
+    <span class="kw">public void</span> <span class="fn">enqueue</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">String</span> task) {
         jedis.<span class="fn">lpush</span>(<span class="str">"queue:emails"</span>, task);
     }
 
     <span class="cm">// Consumer: pop from right (FIFO order)</span>
-    <span class="kw">public</span> <span class="cl">String</span> <span class="fn">dequeue</span>(<span class="cl">Jedis</span> jedis) {
+    <span class="kw">public</span> <span class="cl">String</span> <span class="fn">dequeue</span>(<span
+                            class="cl">Jedis</span> jedis) {
         <span class="kw">return</span> jedis.<span class="fn">rpop</span>(<span class="str">"queue:emails"</span>);
     }
 
     <span class="cm">// Blocking pop — waits up to 5s for a task</span>
-    <span class="kw">public</span> <span class="cl">String</span> <span class="fn">blockingDequeue</span>(<span class="cl">Jedis</span> jedis) {
-        <span class="cl">List</span>&lt;<span class="cl">String</span>&gt; result = jedis.<span class="fn">brpop</span>(<span class="nu">5</span>, <span class="str">"queue:emails"</span>);
+    <span class="kw">public</span> <span class="cl">String</span> <span class="fn">blockingDequeue</span>(<span
+                            class="cl">Jedis</span> jedis) {
+        <span class="cl">List</span>&lt;<span class="cl">String</span>&gt; result = jedis.<span class="fn">brpop</span>(<span
+                            class="nu">5</span>, <span class="str">"queue:emails"</span>);
         <span class="cm">// result = [queueName, value] or null on timeout</span>
-        <span class="kw">return</span> result != <span class="kw">null</span> ? result.<span class="fn">get</span>(<span class="nu">1</span>) : <span class="kw">null</span>;
+        <span class="kw">return</span> result != <span class="kw">null</span> ? result.<span class="fn">get</span>(<span
+                            class="nu">1</span>) : <span class="kw">null</span>;
     }
 
     <span class="cm">// ── RECENT ITEMS (Activity Feed) ───────────────────────</span>
-    <span class="kw">public void</span> <span class="fn">addActivity</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> userId, <span class="cl">String</span> activity) {
+    <span class="kw">public void</span> <span class="fn">addActivity</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="kw">int</span> userId, <span class="cl">String</span> activity) {
         <span class="cl">String</span> key = <span class="str">"feed:"</span> + userId;
         jedis.<span class="fn">lpush</span>(key, activity);           <span class="cm">// newest first</span>
-        jedis.<span class="fn">ltrim</span>(key, <span class="nu">0</span>, <span class="nu">99</span>);              <span class="cm">// keep only 100 items</span>
+        jedis.<span class="fn">ltrim</span>(key, <span class="nu">0</span>, <span
+                            class="nu">99</span>);              <span class="cm">// keep only 100 items</span>
     }
 
-    <span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">String</span>&gt; <span class="fn">getRecentActivity</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> userId) {
-        <span class="kw">return</span> jedis.<span class="fn">lrange</span>(<span class="str">"feed:"</span> + userId, <span class="nu">0</span>, <span class="nu">19</span>); <span class="cm">// first 20</span>
+    <span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">String</span>&gt; <span class="fn">getRecentActivity</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="kw">int</span> userId) {
+        <span class="kw">return</span> jedis.<span class="fn">lrange</span>(<span
+                            class="str">"feed:"</span> + userId, <span class="nu">0</span>, <span class="nu">19</span>); <span
+                            class="cm">// first 20</span>
     }
 
     <span class="cm">// Queue size</span>
@@ -670,90 +1079,114 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
         <span class="kw">return</span> jedis.<span class="fn">llen</span>(<span class="str">"queue:emails"</span>);
     }
 }</code></pre>
-      </div>
-    </div>
+            </div>
+        </div>
 
-    <!-- ===================== SETS ===================== -->
-    <div id="s-sets" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-green">🔵</div>
-        <div><h2>Sets & Sorted Sets</h2><p>Unique collections + scored rankings</p></div>
-      </div>
-      <div class="code-wrap">
-        <div class="code-label">SetOperations.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="cm">// ── REGULAR SET ────────────────────────────────────────────</span>
+        <!-- ===================== SETS ===================== -->
+        <div id="s-sets" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-green">🔵</div>
+                <div><h2>Sets & Sorted Sets</h2>
+                    <p>Unique collections + scored rankings</p></div>
+            </div>
+            <div class="code-wrap">
+                <div class="code-label">SetOperations.java
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="cm">// ── REGULAR SET ────────────────────────────────────────────</span>
 <span class="cm">// Use case: track who liked a post, online users, tags</span>
 
-<span class="kw">public void</span> <span class="fn">likePost</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> postId, <span class="kw">int</span> userId) {
-    jedis.<span class="fn">sadd</span>(<span class="str">"likes:"</span> + postId, <span class="cl">String</span>.<span class="fn">valueOf</span>(userId));
+<span class="kw">public void</span> <span class="fn">likePost</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="kw">int</span> postId, <span class="kw">int</span> userId) {
+    jedis.<span class="fn">sadd</span>(<span class="str">"likes:"</span> + postId, <span class="cl">String</span>.<span
+                            class="fn">valueOf</span>(userId));
 }
 
-<span class="kw">public boolean</span> <span class="fn">hasLiked</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> postId, <span class="kw">int</span> userId) {
-    <span class="kw">return</span> jedis.<span class="fn">sismember</span>(<span class="str">"likes:"</span> + postId, <span class="cl">String</span>.<span class="fn">valueOf</span>(userId));
+<span class="kw">public boolean</span> <span class="fn">hasLiked</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="kw">int</span> postId, <span class="kw">int</span> userId) {
+    <span class="kw">return</span> jedis.<span class="fn">sismember</span>(<span
+                            class="str">"likes:"</span> + postId, <span class="cl">String</span>.<span class="fn">valueOf</span>(userId));
 }
 
-<span class="kw">public long</span> <span class="fn">getLikeCount</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> postId) {
+<span class="kw">public long</span> <span class="fn">getLikeCount</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="kw">int</span> postId) {
     <span class="kw">return</span> jedis.<span class="fn">scard</span>(<span class="str">"likes:"</span> + postId);
 }
 
 <span class="cm">// Set operations — find mutual friends</span>
-<span class="kw">public</span> <span class="cl">Set</span>&lt;<span class="cl">String</span>&gt; <span class="fn">mutualFriends</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> u1, <span class="kw">int</span> u2) {
-    <span class="kw">return</span> jedis.<span class="fn">sinter</span>(<span class="str">"friends:"</span> + u1, <span class="str">"friends:"</span> + u2);
+<span class="kw">public</span> <span class="cl">Set</span>&lt;<span class="cl">String</span>&gt; <span class="fn">mutualFriends</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="kw">int</span> u1, <span class="kw">int</span> u2) {
+    <span class="kw">return</span> jedis.<span class="fn">sinter</span>(<span class="str">"friends:"</span> + u1, <span
+                            class="str">"friends:"</span> + u2);
 }
 
 <span class="cm">// ── SORTED SET (ZSet) ─────────────────────────────────────</span>
 <span class="cm">// Use case: leaderboards, priority queues, rate limiting</span>
 
 <span class="cm">// Game score leaderboard</span>
-<span class="kw">public void</span> <span class="fn">recordScore</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> player, <span class="kw">double</span> score) {
+<span class="kw">public void</span> <span class="fn">recordScore</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">String</span> player, <span class="kw">double</span> score) {
     jedis.<span class="fn">zadd</span>(<span class="str">"leaderboard"</span>, score, player);
 }
 
 <span class="cm">// Top 10 players (highest score first)</span>
-<span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">String</span>&gt; <span class="fn">getTop10</span>(<span class="cl">Jedis</span> jedis) {
+<span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">String</span>&gt; <span class="fn">getTop10</span>(<span
+                            class="cl">Jedis</span> jedis) {
     <span class="kw">return</span> <span class="kw">new</span> <span class="cl">ArrayList</span>&lt;&gt;(
-        jedis.<span class="fn">zrevrange</span>(<span class="str">"leaderboard"</span>, <span class="nu">0</span>, <span class="nu">9</span>)
+        jedis.<span class="fn">zrevrange</span>(<span class="str">"leaderboard"</span>, <span class="nu">0</span>, <span
+                            class="nu">9</span>)
     );
 }
 
 <span class="cm">// Player rank (0-based, so add 1)</span>
-<span class="kw">public long</span> <span class="fn">getPlayerRank</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> player) {
+<span class="kw">public long</span> <span class="fn">getPlayerRank</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">String</span> player) {
     <span class="cl">Long</span> rank = jedis.<span class="fn">zrevrank</span>(<span class="str">"leaderboard"</span>, player);
-    <span class="kw">return</span> rank != <span class="kw">null</span> ? rank + <span class="nu">1</span> : -<span class="nu">1</span>;
+    <span class="kw">return</span> rank != <span class="kw">null</span> ? rank + <span class="nu">1</span> : -<span
+                            class="nu">1</span>;
 }
 
 <span class="cm">// Get score with rank</span>
-<span class="kw">public</span> <span class="cl">Set</span>&lt;<span class="cl">Tuple</span>&gt; <span class="fn">getTop10WithScores</span>(<span class="cl">Jedis</span> jedis) {
-    <span class="kw">return</span> jedis.<span class="fn">zrevrangeWithScores</span>(<span class="str">"leaderboard"</span>, <span class="nu">0</span>, <span class="nu">9</span>);
+<span class="kw">public</span> <span class="cl">Set</span>&lt;<span class="cl">Tuple</span>&gt; <span class="fn">getTop10WithScores</span>(<span
+                            class="cl">Jedis</span> jedis) {
+    <span class="kw">return</span> jedis.<span class="fn">zrevrangeWithScores</span>(<span
+                            class="str">"leaderboard"</span>, <span class="nu">0</span>, <span class="nu">9</span>);
 }</code></pre>
-      </div>
-    </div>
+            </div>
+        </div>
 
-    <!-- ===================== CACHING ===================== -->
-    <div id="s-caching" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-green">⚡</div>
-        <div><h2>Caching Layer</h2><p>Cache-aside pattern — the most common Redis use case</p></div>
-      </div>
+        <!-- ===================== CACHING ===================== -->
+        <div id="s-caching" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-green">⚡</div>
+                <div><h2>Caching Layer</h2>
+                    <p>Cache-aside pattern — the most common Redis use case</p></div>
+            </div>
 
-      <div class="info-box note">
-        <div class="info-icon">📋</div>
-        <div><strong style="color:var(--blue)">Cache-Aside Pattern:</strong> Check Redis first → if miss, load from DB → store in Redis → return. On update, invalidate the cache key.</div>
-      </div>
+            <div class="info-box note">
+                <div class="info-icon">📋</div>
+                <div><strong style="color:var(--blue)">Cache-Aside Pattern:</strong> Check Redis first → if miss, load
+                    from DB → store in Redis → return. On update, invalidate the cache key.
+                </div>
+            </div>
 
-      <div class="code-wrap">
-        <div class="code-label">ProductCacheService.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="an">@Service</span>
+            <div class="code-wrap">
+                <div class="code-label">ProductCacheService.java
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="an">@Service</span>
 <span class="kw">public class</span> <span class="cl">ProductCacheService</span> {
 
     <span class="kw">private final</span> <span class="cl">JedisPool</span> jedisPool;
     <span class="kw">private final</span> <span class="cl">ProductRepository</span> db;
-    <span class="kw">private final</span> <span class="cl">ObjectMapper</span> mapper = <span class="kw">new</span> <span class="cl">ObjectMapper</span>();
+    <span class="kw">private final</span> <span class="cl">ObjectMapper</span> mapper = <span
+                            class="kw">new</span> <span class="cl">ObjectMapper</span>();
 
     <span class="kw">private static final int</span> TTL_SECONDS = <span class="nu">3600</span>; <span class="cm">// 1 hour</span>
 
     <span class="cm">// ── CACHE-ASIDE GET ────────────────────────────────────</span>
-    <span class="kw">public</span> <span class="cl">Product</span> <span class="fn">getProduct</span>(<span class="kw">long</span> productId) <span class="kw">throws</span> <span class="cl">Exception</span> {
+    <span class="kw">public</span> <span class="cl">Product</span> <span class="fn">getProduct</span>(<span class="kw">long</span> productId) <span
+                            class="kw">throws</span> <span class="cl">Exception</span> {
         <span class="cl">String</span> key = <span class="str">"product:"</span> + productId;
 
         <span class="kw">try</span> (<span class="cl">Jedis</span> jedis = jedisPool.<span class="fn">getResource</span>()) {
@@ -761,12 +1194,14 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
             <span class="cl">String</span> cached = jedis.<span class="fn">get</span>(key);
             <span class="kw">if</span> (cached != <span class="kw">null</span>) {
                 <span class="cm">// Cache HIT ✓</span>
-                <span class="kw">return</span> mapper.<span class="fn">readValue</span>(cached, <span class="cl">Product</span>.<span class="kw">class</span>);
+                <span class="kw">return</span> mapper.<span class="fn">readValue</span>(cached, <span
+                            class="cl">Product</span>.<span class="kw">class</span>);
             }
 
             <span class="cm">// 2. Cache MISS — load from database</span>
             <span class="cl">Product</span> product = db.<span class="fn">findById</span>(productId)
-                .<span class="fn">orElseThrow</span>(() -&gt; <span class="kw">new</span> <span class="cl">RuntimeException</span>(<span class="str">"Not found"</span>));
+                .<span class="fn">orElseThrow</span>(() -&gt; <span class="kw">new</span> <span class="cl">RuntimeException</span>(<span
+                            class="str">"Not found"</span>));
 
             <span class="cm">// 3. Store in cache with TTL</span>
             <span class="cl">String</span> json = mapper.<span class="fn">writeValueAsString</span>(product);
@@ -777,19 +1212,23 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
     }
 
     <span class="cm">// ── CACHE INVALIDATION ────────────────────────────────</span>
-    <span class="kw">public</span> <span class="cl">Product</span> <span class="fn">updateProduct</span>(<span class="cl">Product</span> product) <span class="kw">throws</span> <span class="cl">Exception</span> {
+    <span class="kw">public</span> <span class="cl">Product</span> <span class="fn">updateProduct</span>(<span
+                            class="cl">Product</span> product) <span class="kw">throws</span> <span
+                            class="cl">Exception</span> {
         <span class="cm">// Update DB first</span>
         <span class="cl">Product</span> updated = db.<span class="fn">save</span>(product);
 
         <span class="cm">// Then invalidate cache (next read will populate fresh)</span>
         <span class="kw">try</span> (<span class="cl">Jedis</span> jedis = jedisPool.<span class="fn">getResource</span>()) {
-            jedis.<span class="fn">del</span>(<span class="str">"product:"</span> + product.<span class="fn">getId</span>());
+            jedis.<span class="fn">del</span>(<span class="str">"product:"</span> + product.<span
+                            class="fn">getId</span>());
         }
         <span class="kw">return</span> updated;
     }
 
     <span class="cm">// ── BULK CACHE (warmup) ───────────────────────────────</span>
-    <span class="kw">public void</span> <span class="fn">warmUpCache</span>(<span class="cl">List</span>&lt;<span class="cl">Product</span>&gt; products) <span class="kw">throws</span> <span class="cl">Exception</span> {
+    <span class="kw">public void</span> <span class="fn">warmUpCache</span>(<span class="cl">List</span>&lt;<span
+                            class="cl">Product</span>&gt; products) <span class="kw">throws</span> <span class="cl">Exception</span> {
         <span class="kw">try</span> (<span class="cl">Jedis</span> jedis = jedisPool.<span class="fn">getResource</span>()) {
             <span class="cl">Pipeline</span> pipe = jedis.<span class="fn">pipelined</span>();
             <span class="kw">for</span> (<span class="cl">Product</span> p : products) {
@@ -800,36 +1239,47 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
         }
     }
 }</code></pre>
-      </div>
-      <div class="info-box warn">
-        <div class="info-icon">⚠️</div>
-        <div><strong style="color:var(--accent2)">Cache Stampede:</strong> If many requests hit an expired key simultaneously, they all go to DB. Fix with a short mutex lock on the first refill, or use Redis WAIT.</div>
-      </div>
-    </div>
+            </div>
+            <div class="info-box warn">
+                <div class="info-icon">⚠️</div>
+                <div><strong style="color:var(--accent2)">Cache Stampede:</strong> If many requests hit an expired key
+                    simultaneously, they all go to DB. Fix with a short mutex lock on the first refill, or use Redis
+                    WAIT.
+                </div>
+            </div>
+        </div>
 
-    <!-- ===================== SESSIONS ===================== -->
-    <div id="s-sessions" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-blue">🔐</div>
-        <div><h2>Session Store</h2><p>Stateless app servers + Redis = horizontal scaling</p></div>
-      </div>
-      <div class="code-wrap">
-        <div class="code-label">SessionService.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="kw">public class</span> <span class="cl">SessionService</span> {
+        <!-- ===================== SESSIONS ===================== -->
+        <div id="s-sessions" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-blue">🔐</div>
+                <div><h2>Session Store</h2>
+                    <p>Stateless app servers + Redis = horizontal scaling</p></div>
+            </div>
+            <div class="code-wrap">
+                <div class="code-label">SessionService.java
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="kw">public class</span> <span class="cl">SessionService</span> {
 
     <span class="kw">private static final int</span> SESSION_TTL = <span class="nu">1800</span>; <span class="cm">// 30 minutes</span>
 
     <span class="cm">// Create session after login</span>
-    <span class="kw">public</span> <span class="cl">String</span> <span class="fn">createSession</span>(<span class="cl">Jedis</span> jedis, <span class="cl">User</span> user) {
-        <span class="cl">String</span> sessionId = <span class="cl">UUID</span>.<span class="fn">randomUUID</span>().<span class="fn">toString</span>();
+    <span class="kw">public</span> <span class="cl">String</span> <span class="fn">createSession</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="cl">User</span> user) {
+        <span class="cl">String</span> sessionId = <span class="cl">UUID</span>.<span
+                            class="fn">randomUUID</span>().<span class="fn">toString</span>();
         <span class="cl">String</span> key = <span class="str">"session:"</span> + sessionId;
 
         <span class="cm">// Store session data as Hash</span>
-        <span class="cl">Map</span>&lt;<span class="cl">String</span>, <span class="cl">String</span>&gt; sessionData = <span class="kw">new</span> <span class="cl">HashMap</span>&lt;&gt;();
-        sessionData.<span class="fn">put</span>(<span class="str">"userId"</span>, <span class="cl">String</span>.<span class="fn">valueOf</span>(user.<span class="fn">getId</span>()));
+        <span class="cl">Map</span>&lt;<span class="cl">String</span>, <span class="cl">String</span>&gt; sessionData = <span
+                            class="kw">new</span> <span class="cl">HashMap</span>&lt;&gt;();
+        sessionData.<span class="fn">put</span>(<span class="str">"userId"</span>, <span class="cl">String</span>.<span
+                            class="fn">valueOf</span>(user.<span class="fn">getId</span>()));
         sessionData.<span class="fn">put</span>(<span class="str">"email"</span>, user.<span class="fn">getEmail</span>());
         sessionData.<span class="fn">put</span>(<span class="str">"role"</span>, user.<span class="fn">getRole</span>());
-        sessionData.<span class="fn">put</span>(<span class="str">"createdAt"</span>, <span class="cl">Instant</span>.<span class="fn">now</span>().<span class="fn">toString</span>());
+        sessionData.<span class="fn">put</span>(<span class="str">"createdAt"</span>, <span
+                            class="cl">Instant</span>.<span class="fn">now</span>().<span class="fn">toString</span>());
 
         jedis.<span class="fn">hset</span>(key, sessionData);
         jedis.<span class="fn">expire</span>(key, SESSION_TTL);
@@ -838,11 +1288,15 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
     }
 
     <span class="cm">// Validate and get session (also refreshes TTL)</span>
-    <span class="kw">public</span> <span class="cl">Map</span>&lt;<span class="cl">String</span>, <span class="cl">String</span>&gt; <span class="fn">getSession</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> sessionId) {
+    <span class="kw">public</span> <span class="cl">Map</span>&lt;<span class="cl">String</span>, <span class="cl">String</span>&gt; <span
+                            class="fn">getSession</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">String</span> sessionId) {
         <span class="cl">String</span> key = <span class="str">"session:"</span> + sessionId;
-        <span class="cl">Map</span>&lt;<span class="cl">String</span>, <span class="cl">String</span>&gt; session = jedis.<span class="fn">hgetAll</span>(key);
+        <span class="cl">Map</span>&lt;<span class="cl">String</span>, <span class="cl">String</span>&gt; session = jedis.<span
+                            class="fn">hgetAll</span>(key);
 
-        <span class="kw">if</span> (session.<span class="fn">isEmpty</span>()) <span class="kw">return null</span>; <span class="cm">// expired or invalid</span>
+        <span class="kw">if</span> (session.<span class="fn">isEmpty</span>()) <span
+                            class="kw">return null</span>; <span class="cm">// expired or invalid</span>
 
         <span class="cm">// Sliding expiry — reset TTL on each request</span>
         jedis.<span class="fn">expire</span>(key, SESSION_TTL);
@@ -850,17 +1304,22 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
     }
 
     <span class="cm">// Logout</span>
-    <span class="kw">public void</span> <span class="fn">destroySession</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> sessionId) {
+    <span class="kw">public void</span> <span class="fn">destroySession</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="cl">String</span> sessionId) {
         jedis.<span class="fn">del</span>(<span class="str">"session:"</span> + sessionId);
     }
 
     <span class="cm">// Track all sessions for a user (to invalidate all on logout)</span>
-    <span class="kw">public void</span> <span class="fn">trackUserSession</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> userId, <span class="cl">String</span> sessionId) {
+    <span class="kw">public void</span> <span class="fn">trackUserSession</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="kw">int</span> userId, <span
+                            class="cl">String</span> sessionId) {
         jedis.<span class="fn">sadd</span>(<span class="str">"user_sessions:"</span> + userId, sessionId);
     }
 
-    <span class="kw">public void</span> <span class="fn">logoutAllDevices</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> userId) {
-        <span class="cl">Set</span>&lt;<span class="cl">String</span>&gt; sessions = jedis.<span class="fn">smembers</span>(<span class="str">"user_sessions:"</span> + userId);
+    <span class="kw">public void</span> <span class="fn">logoutAllDevices</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="kw">int</span> userId) {
+        <span class="cl">Set</span>&lt;<span class="cl">String</span>&gt; sessions = jedis.<span
+                            class="fn">smembers</span>(<span class="str">"user_sessions:"</span> + userId);
         <span class="kw">if</span> (!sessions.<span class="fn">isEmpty</span>()) {
             <span class="cl">String</span>[] keys = sessions.<span class="fn">stream</span>()
                 .<span class="fn">map</span>(s -&gt; <span class="str">"session:"</span> + s)
@@ -870,34 +1329,42 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
         }
     }
 }</code></pre>
-      </div>
-    </div>
+            </div>
+        </div>
 
-    <!-- ===================== RATE LIMITING ===================== -->
-    <div id="s-ratelimit" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-red">🛡️</div>
-        <div><h2>Rate Limiting</h2><p>Protect APIs from abuse. Two strategies: Fixed Window & Sliding Window.</p></div>
-      </div>
-      <div class="code-wrap">
-        <div class="code-label">RateLimiter.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="kw">public class</span> <span class="cl">RateLimiter</span> {
+        <!-- ===================== RATE LIMITING ===================== -->
+        <div id="s-ratelimit" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-red">🛡️</div>
+                <div><h2>Rate Limiting</h2>
+                    <p>Protect APIs from abuse. Two strategies: Fixed Window & Sliding Window.</p></div>
+            </div>
+            <div class="code-wrap">
+                <div class="code-label">RateLimiter.java
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="kw">public class</span> <span class="cl">RateLimiter</span> {
 
     <span class="cm">// ── STRATEGY 1: Fixed Window Counter ──────────────────</span>
     <span class="cm">// 100 requests per user per minute</span>
-    <span class="kw">public boolean</span> <span class="fn">allowFixed</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> userId) {
+    <span class="kw">public boolean</span> <span class="fn">allowFixed</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">String</span> userId) {
         <span class="cm">// Key resets every minute</span>
-        <span class="kw">long</span> window = <span class="cl">System</span>.<span class="fn">currentTimeMillis</span>() / <span class="nu">60000</span>;
+        <span class="kw">long</span> window = <span class="cl">System</span>.<span class="fn">currentTimeMillis</span>() / <span
+                            class="nu">60000</span>;
         <span class="cl">String</span> key = <span class="str">"rate:"</span> + userId + <span class="str">":"</span> + window;
 
         <span class="kw">long</span> count = jedis.<span class="fn">incr</span>(key);
-        <span class="kw">if</span> (count == <span class="nu">1</span>) jedis.<span class="fn">expire</span>(key, <span class="nu">70</span>); <span class="cm">// 70s safety margin</span>
-        <span class="kw">return</span> count &lt;= <span class="nu">100</span>; <span class="cm">// true = allowed</span>
+        <span class="kw">if</span> (count == <span class="nu">1</span>) jedis.<span class="fn">expire</span>(key, <span
+                            class="nu">70</span>); <span class="cm">// 70s safety margin</span>
+        <span class="kw">return</span> count &lt;= <span class="nu">100</span>; <span
+                            class="cm">// true = allowed</span>
     }
 
     <span class="cm">// ── STRATEGY 2: Sliding Window (more accurate) ────────</span>
     <span class="cm">// Uses Sorted Set with timestamps as scores</span>
-    <span class="kw">public boolean</span> <span class="fn">allowSliding</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> userId,
+    <span class="kw">public boolean</span> <span class="fn">allowSliding</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="cl">String</span> userId,
                                  <span class="kw">int</span> maxRequests, <span class="kw">int</span> windowSeconds) {
         <span class="cl">String</span> key = <span class="str">"sliding:"</span> + userId;
         <span class="kw">long</span> now = <span class="cl">System</span>.<span class="fn">currentTimeMillis</span>();
@@ -912,7 +1379,8 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
         <span class="cl">Response</span>&lt;<span class="cl">Long</span>&gt; count = pipe.<span class="fn">zcard</span>(key);
 
         <span class="cm">// Add this request</span>
-        pipe.<span class="fn">zadd</span>(key, now, now + <span class="str">"-"</span> + <span class="cl">Math</span>.<span class="fn">random</span>());
+        pipe.<span class="fn">zadd</span>(key, now, now + <span class="str">"-"</span> + <span
+                            class="cl">Math</span>.<span class="fn">random</span>());
         pipe.<span class="fn">expire</span>(key, windowSeconds + <span class="nu">1</span>);
         pipe.<span class="fn">sync</span>();
 
@@ -920,7 +1388,8 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
     }
 
     <span class="cm">// ── STRATEGY 3: Token Bucket (smooth bursting) ────────</span>
-    <span class="kw">public boolean</span> <span class="fn">allowTokenBucket</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> userId) {
+    <span class="kw">public boolean</span> <span class="fn">allowTokenBucket</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">String</span> userId) {
         <span class="cm">// Use Lua script for atomic refill + consume</span>
         <span class="cl">String</span> lua = <span class="str">
             "local tokens = tonumber(redis.call('get', KEYS[1]) or ARGV[1]) " +
@@ -937,49 +1406,64 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
             "end " +
             "return 0"</span>;
 
-        <span class="kw">long</span> result = (<span class="cl">Long</span>) jedis.<span class="fn">eval</span>(lua, <span class="nu">2</span>,
+        <span class="kw">long</span> result = (<span class="cl">Long</span>) jedis.<span
+                            class="fn">eval</span>(lua, <span class="nu">2</span>,
             <span class="str">"bucket:"</span> + userId,    <span class="cm">// KEYS[1] = token count</span>
             <span class="str">"bucket_ts:"</span> + userId,  <span class="cm">// KEYS[2] = last refill time</span>
             <span class="str">"100"</span>,                   <span class="cm">// ARGV[1] = max tokens</span>
-            <span class="str">"10"</span>,                    <span class="cm">// ARGV[2] = refill rate (tokens/sec)</span>
-            <span class="cl">String</span>.<span class="fn">valueOf</span>(<span class="cl">System</span>.<span class="fn">currentTimeMillis</span>())
+            <span class="str">"10"</span>,                    <span
+                            class="cm">// ARGV[2] = refill rate (tokens/sec)</span>
+            <span class="cl">String</span>.<span class="fn">valueOf</span>(<span class="cl">System</span>.<span
+                            class="fn">currentTimeMillis</span>())
         );
         <span class="kw">return</span> result == <span class="nu">1</span>;
     }
 }</code></pre>
-      </div>
-    </div>
+            </div>
+        </div>
 
-    <!-- ===================== PUB/SUB ===================== -->
-    <div id="s-pubsub" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-purple">📡</div>
-        <div><h2>Publish / Subscribe</h2><p>Real-time messaging between services</p></div>
-      </div>
-      <div class="code-wrap">
-        <div class="code-label">Publisher.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="kw">public class</span> <span class="cl">NotificationPublisher</span> {
+        <!-- ===================== PUB/SUB ===================== -->
+        <div id="s-pubsub" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-purple">📡</div>
+                <div><h2>Publish / Subscribe</h2>
+                    <p>Real-time messaging between services</p></div>
+            </div>
+            <div class="code-wrap">
+                <div class="code-label">Publisher.java
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="kw">public class</span> <span class="cl">NotificationPublisher</span> {
 
-    <span class="kw">public void</span> <span class="fn">sendOrderUpdate</span>(<span class="cl">Jedis</span> jedis, <span class="cl">OrderEvent</span> event)
+    <span class="kw">public void</span> <span class="fn">sendOrderUpdate</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="cl">OrderEvent</span> event)
             <span class="kw">throws</span> <span class="cl">JsonProcessingException</span> {
-        <span class="cl">String</span> channel = <span class="str">"orders:"</span> + event.<span class="fn">getStatus</span>(); <span class="cm">// e.g. orders:SHIPPED</span>
+        <span class="cl">String</span> channel = <span class="str">"orders:"</span> + event.<span
+                            class="fn">getStatus</span>(); <span class="cm">// e.g. orders:SHIPPED</span>
         <span class="cl">String</span> message = mapper.<span class="fn">writeValueAsString</span>(event);
 
         <span class="kw">long</span> receivers = jedis.<span class="fn">publish</span>(channel, message);
-        <span class="cl">System</span>.out.<span class="fn">println</span>(<span class="str">"Sent to "</span> + receivers + <span class="str">" subscribers"</span>);
+        <span class="cl">System</span>.out.<span class="fn">println</span>(<span class="str">"Sent to "</span> + receivers + <span
+                            class="str">" subscribers"</span>);
     }
 }</code></pre>
-      </div>
-      <div class="code-wrap">
-        <div class="code-label">Subscriber.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="kw">public class</span> <span class="cl">OrderSubscriber</span> <span class="kw">extends</span> <span class="cl">JedisPubSub</span> {
+            </div>
+            <div class="code-wrap">
+                <div class="code-label">Subscriber.java
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="kw">public class</span> <span class="cl">OrderSubscriber</span> <span
+                        class="kw">extends</span> <span class="cl">JedisPubSub</span> {
 
     <span class="an">@Override</span>
-    <span class="kw">public void</span> <span class="fn">onMessage</span>(<span class="cl">String</span> channel, <span class="cl">String</span> message) {
-        <span class="cl">System</span>.out.<span class="fn">println</span>(<span class="str">"[</span>" + channel + <span class="str">"] "</span> + message);
+    <span class="kw">public void</span> <span class="fn">onMessage</span>(<span class="cl">String</span> channel, <span
+                            class="cl">String</span> message) {
+        <span class="cl">System</span>.out.<span class="fn">println</span>(<span
+                            class="str">"[</span>" + channel + <span class="str">"] "</span> + message);
         <span class="cm">// Parse and handle the event</span>
         <span class="kw">try</span> {
-            <span class="cl">OrderEvent</span> event = mapper.<span class="fn">readValue</span>(message, <span class="cl">OrderEvent</span>.<span class="kw">class</span>);
+            <span class="cl">OrderEvent</span> event = mapper.<span class="fn">readValue</span>(message, <span
+                            class="cl">OrderEvent</span>.<span class="kw">class</span>);
             <span class="fn">handleOrderEvent</span>(event);
         } <span class="kw">catch</span> (<span class="cl">Exception</span> e) {
             e.<span class="fn">printStackTrace</span>();
@@ -987,7 +1471,8 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
     }
 
     <span class="an">@Override</span>
-    <span class="kw">public void</span> <span class="fn">onSubscribe</span>(<span class="cl">String</span> channel, <span class="kw">int</span> subscribedChannels) {
+    <span class="kw">public void</span> <span class="fn">onSubscribe</span>(<span
+                            class="cl">String</span> channel, <span class="kw">int</span> subscribedChannels) {
         <span class="cl">System</span>.out.<span class="fn">println</span>(<span class="str">"Subscribed to: "</span> + channel);
     }
 
@@ -1000,48 +1485,61 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
 <span class="kw">public void</span> <span class="fn">startListening</span>() {
     <span class="kw">new</span> <span class="cl">Thread</span>(() -&gt; {
         <span class="kw">try</span> (<span class="cl">Jedis</span> jedis = pool.<span class="fn">getResource</span>()) {
-            <span class="cl">OrderSubscriber</span> sub = <span class="kw">new</span> <span class="cl">OrderSubscriber</span>();
+            <span class="cl">OrderSubscriber</span> sub = <span class="kw">new</span> <span
+                            class="cl">OrderSubscriber</span>();
             <span class="cm">// Subscribe to pattern (orders:*) or specific channels</span>
             jedis.<span class="fn">psubscribe</span>(sub, <span class="str">"orders:*"</span>);
         }
     }).<span class="fn">start</span>();
 }</code></pre>
-      </div>
-    </div>
+            </div>
+        </div>
 
-    <!-- ===================== LEADERBOARD ===================== -->
-    <div id="s-leaderboard" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-orange">🏆</div>
-        <div><h2>Real-Time Leaderboard</h2><p>Sorted Sets are perfect for rankings. O(log N) for all operations.</p></div>
-      </div>
-      <div class="code-wrap">
-        <div class="code-label">LeaderboardService.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="an">@Service</span>
+        <!-- ===================== LEADERBOARD ===================== -->
+        <div id="s-leaderboard" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-orange">🏆</div>
+                <div><h2>Real-Time Leaderboard</h2>
+                    <p>Sorted Sets are perfect for rankings. O(log N) for all operations.</p></div>
+            </div>
+            <div class="code-wrap">
+                <div class="code-label">LeaderboardService.java
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="an">@Service</span>
 <span class="kw">public class</span> <span class="cl">LeaderboardService</span> {
 
     <span class="kw">private static final</span> <span class="cl">String</span> BOARD = <span class="str">"leaderboard:global"</span>;
 
     <span class="cm">// Add or update a player's score</span>
-    <span class="kw">public void</span> <span class="fn">addScore</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> playerId, <span class="kw">double</span> score) {
+    <span class="kw">public void</span> <span class="fn">addScore</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">String</span> playerId, <span class="kw">double</span> score) {
         jedis.<span class="fn">zadd</span>(BOARD, score, playerId);
         <span class="cm">// Also store player profile in hash</span>
-        jedis.<span class="fn">hset</span>(<span class="str">"player:"</span> + playerId, <span class="str">"score"</span>, <span class="cl">String</span>.<span class="fn">valueOf</span>(score));
+        jedis.<span class="fn">hset</span>(<span class="str">"player:"</span> + playerId, <span
+                            class="str">"score"</span>, <span class="cl">String</span>.<span class="fn">valueOf</span>(score));
     }
 
     <span class="cm">// Increment (e.g., kill in a game = +10 points)</span>
-    <span class="kw">public double</span> <span class="fn">incrementScore</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> playerId, <span class="kw">double</span> points) {
+    <span class="kw">public double</span> <span class="fn">incrementScore</span>(<span
+                            class="cl">Jedis</span> jedis, <span class="cl">String</span> playerId, <span class="kw">double</span> points) {
         <span class="kw">return</span> jedis.<span class="fn">zincrby</span>(BOARD, points, playerId);
     }
 
     <span class="cm">// Get top N with scores and ranks</span>
-    <span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">LeaderboardEntry</span>&gt; <span class="fn">getTopPlayers</span>(<span class="cl">Jedis</span> jedis, <span class="kw">int</span> n) {
-        <span class="cl">List</span>&lt;<span class="cl">LeaderboardEntry</span>&gt; entries = <span class="kw">new</span> <span class="cl">ArrayList</span>&lt;&gt;();
-        <span class="cl">List</span>&lt;<span class="cl">Tuple</span>&gt; results = <span class="kw">new</span> <span class="cl">ArrayList</span>&lt;&gt;(
-            jedis.<span class="fn">zrevrangeWithScores</span>(BOARD, <span class="nu">0</span>, n - <span class="nu">1</span>)
+    <span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">LeaderboardEntry</span>&gt; <span
+                            class="fn">getTopPlayers</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="kw">int</span> n) {
+        <span class="cl">List</span>&lt;<span class="cl">LeaderboardEntry</span>&gt; entries = <span
+                            class="kw">new</span> <span class="cl">ArrayList</span>&lt;&gt;();
+        <span class="cl">List</span>&lt;<span class="cl">Tuple</span>&gt; results = <span class="kw">new</span> <span
+                            class="cl">ArrayList</span>&lt;&gt;(
+            jedis.<span class="fn">zrevrangeWithScores</span>(BOARD, <span class="nu">0</span>, n - <span
+                            class="nu">1</span>)
         );
 
-        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; results.<span class="fn">size</span>(); i++) {
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="nu">0</span>; i &lt; results.<span
+                            class="fn">size</span>(); i++) {
             <span class="cl">Tuple</span> t = results.<span class="fn">get</span>(i);
             entries.<span class="fn">add</span>(<span class="kw">new</span> <span class="cl">LeaderboardEntry</span>(
                 i + <span class="nu">1</span>,           <span class="cm">// rank</span>
@@ -1053,41 +1551,51 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
     }
 
     <span class="cm">// Get surrounding players (my rank ± 2)</span>
-    <span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">LeaderboardEntry</span>&gt; <span class="fn">getMyContext</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> playerId) {
+    <span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">LeaderboardEntry</span>&gt; <span
+                            class="fn">getMyContext</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">String</span> playerId) {
         <span class="cl">Long</span> rank = jedis.<span class="fn">zrevrank</span>(BOARD, playerId);
-        <span class="kw">if</span> (rank == <span class="kw">null</span>) <span class="kw">return</span> <span class="cl">Collections</span>.<span class="fn">emptyList</span>();
+        <span class="kw">if</span> (rank == <span class="kw">null</span>) <span class="kw">return</span> <span
+                            class="cl">Collections</span>.<span class="fn">emptyList</span>();
 
-        <span class="kw">long</span> from = <span class="cl">Math</span>.<span class="fn">max</span>(<span class="nu">0</span>, rank - <span class="nu">2</span>);
+        <span class="kw">long</span> from = <span class="cl">Math</span>.<span class="fn">max</span>(<span
+                            class="nu">0</span>, rank - <span class="nu">2</span>);
         <span class="kw">long</span> to = rank + <span class="nu">2</span>;
 
         <span class="kw">return</span> <span class="kw">new</span> <span class="cl">ArrayList</span>&lt;&gt;(
             jedis.<span class="fn">zrevrangeWithScores</span>(BOARD, from, to)
-        ).<span class="fn">stream</span>().<span class="fn">map</span>(<span class="cm">/* map to LeaderboardEntry */</span>...).collect(...);
+        ).<span class="fn">stream</span>().<span class="fn">map</span>(<span
+                            class="cm">/* map to LeaderboardEntry */</span>...).collect(...);
     }
 
     <span class="cm">// Get player's exact rank</span>
-    <span class="kw">public long</span> <span class="fn">getMyRank</span>(<span class="cl">Jedis</span> jedis, <span class="cl">String</span> playerId) {
+    <span class="kw">public long</span> <span class="fn">getMyRank</span>(<span class="cl">Jedis</span> jedis, <span
+                            class="cl">String</span> playerId) {
         <span class="cl">Long</span> rank = jedis.<span class="fn">zrevrank</span>(BOARD, playerId);
-        <span class="kw">return</span> rank != <span class="kw">null</span> ? rank + <span class="nu">1</span> : -<span class="nu">1</span>;
+        <span class="kw">return</span> rank != <span class="kw">null</span> ? rank + <span class="nu">1</span> : -<span
+                            class="nu">1</span>;
     }
 }</code></pre>
-      </div>
-    </div>
+            </div>
+        </div>
 
-    <!-- ===================== SPRING BOOT ===================== -->
-    <div id="s-spring" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-green">🍃</div>
-        <div><h2>Spring Boot Integration</h2><p>Full setup with @Cacheable, RedisTemplate, and Spring Session</p></div>
-      </div>
+        <!-- ===================== SPRING BOOT ===================== -->
+        <div id="s-spring" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-green">🍃</div>
+                <div><h2>Spring Boot Integration</h2>
+                    <p>Full setup with @Cacheable, RedisTemplate, and Spring Session</p></div>
+            </div>
 
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-body">
-          <h4>application.yml</h4>
-          <div class="code-wrap">
-            <div class="code-label">application.yml <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-            <pre><code>spring:
+            <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-body">
+                    <h4>application.yml</h4>
+                    <div class="code-wrap">
+                        <div class="code-label">application.yml
+                            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                        </div>
+                        <pre><code>spring:
   data:
     redis:
       host: localhost
@@ -1109,17 +1617,19 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
   session:
     store-type: redis
     timeout: 30m</code></pre>
-          </div>
-        </div>
-      </div>
+                    </div>
+                </div>
+            </div>
 
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-body">
-          <h4>@Cacheable — Zero-Code Caching</h4>
-          <div class="code-wrap">
-            <div class="code-label">ProductService.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-            <pre><code><span class="an">@Service</span>
+            <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-body">
+                    <h4>@Cacheable — Zero-Code Caching</h4>
+                    <div class="code-wrap">
+                        <div class="code-label">ProductService.java
+                            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                        </div>
+                        <pre><code><span class="an">@Service</span>
 <span class="an">@EnableCaching</span>
 <span class="kw">public class</span> <span class="cl">ProductService</span> {
 
@@ -1130,13 +1640,16 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
     }
 
     <span class="cm">// Update DB AND refresh cache</span>
-    <span class="an">@CachePut</span>(value = <span class="str">"products"</span>, key = <span class="str">"#product.id"</span>)
-    <span class="kw">public</span> <span class="cl">Product</span> <span class="fn">updateProduct</span>(<span class="cl">Product</span> product) {
+    <span class="an">@CachePut</span>(value = <span class="str">"products"</span>, key = <span
+                                    class="str">"#product.id"</span>)
+    <span class="kw">public</span> <span class="cl">Product</span> <span class="fn">updateProduct</span>(<span
+                                    class="cl">Product</span> product) {
         <span class="kw">return</span> repo.<span class="fn">save</span>(product);
     }
 
     <span class="cm">// Evict from cache on delete</span>
-    <span class="an">@CacheEvict</span>(value = <span class="str">"products"</span>, key = <span class="str">"#id"</span>)
+    <span class="an">@CacheEvict</span>(value = <span class="str">"products"</span>, key = <span
+                                    class="str">"#id"</span>)
     <span class="kw">public void</span> <span class="fn">deleteProduct</span>(<span class="kw">long</span> id) {
         repo.<span class="fn">deleteById</span>(id);
     }
@@ -1144,27 +1657,32 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
     <span class="cm">// Custom key with SpEL</span>
     <span class="an">@Cacheable</span>(value = <span class="str">"products"</span>, key = <span class="str">"'category:' + #category"</span>,
                condition = <span class="str">"#category != null"</span>)
-    <span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">Product</span>&gt; <span class="fn">getByCategory</span>(<span class="cl">String</span> category) {
+    <span class="kw">public</span> <span class="cl">List</span>&lt;<span class="cl">Product</span>&gt; <span class="fn">getByCategory</span>(<span
+                                    class="cl">String</span> category) {
         <span class="kw">return</span> repo.<span class="fn">findByCategory</span>(category);
     }
 }</code></pre>
-          </div>
-        </div>
-      </div>
+                    </div>
+                </div>
+            </div>
 
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-body">
-          <h4>RedisTemplate — Type-Safe Operations</h4>
-          <div class="code-wrap">
-            <div class="code-label">RedisTemplateService.java <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-            <pre><code><span class="an">@Service</span>
+            <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-body">
+                    <h4>RedisTemplate — Type-Safe Operations</h4>
+                    <div class="code-wrap">
+                        <div class="code-label">RedisTemplateService.java
+                            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                        </div>
+                        <pre><code><span class="an">@Service</span>
 <span class="kw">public class</span> <span class="cl">RedisTemplateService</span> {
 
     <span class="an">@Autowired</span>
-    <span class="kw">private</span> <span class="cl">RedisTemplate</span>&lt;<span class="cl">String</span>, <span class="cl">Object</span>&gt; redisTemplate;
+    <span class="kw">private</span> <span class="cl">RedisTemplate</span>&lt;<span class="cl">String</span>, <span
+                                    class="cl">Object</span>&gt; redisTemplate;
 
-    <span class="kw">public void</span> <span class="fn">saveObject</span>(<span class="cl">String</span> key, <span class="cl">Object</span> value, <span class="kw">long</span> ttlSeconds) {
+    <span class="kw">public void</span> <span class="fn">saveObject</span>(<span class="cl">String</span> key, <span
+                                    class="cl">Object</span> value, <span class="kw">long</span> ttlSeconds) {
         redisTemplate.<span class="fn">opsForValue</span>().<span class="fn">set</span>(key, value,
             <span class="cl">Duration</span>.<span class="fn">ofSeconds</span>(ttlSeconds));
     }
@@ -1174,74 +1692,86 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
     }
 
     <span class="cm">// Hash operations</span>
-    <span class="kw">public void</span> <span class="fn">saveHash</span>(<span class="cl">String</span> key, <span class="cl">Map</span>&lt;<span class="cl">String</span>, ?&gt; map) {
+    <span class="kw">public void</span> <span class="fn">saveHash</span>(<span class="cl">String</span> key, <span
+                                    class="cl">Map</span>&lt;<span class="cl">String</span>, ?&gt; map) {
         redisTemplate.<span class="fn">opsForHash</span>().<span class="fn">putAll</span>(key, map);
     }
 
     <span class="cm">// List operations</span>
-    <span class="kw">public void</span> <span class="fn">pushToList</span>(<span class="cl">String</span> key, <span class="cl">Object</span> value) {
+    <span class="kw">public void</span> <span class="fn">pushToList</span>(<span class="cl">String</span> key, <span
+                                    class="cl">Object</span> value) {
         redisTemplate.<span class="fn">opsForList</span>().<span class="fn">leftPush</span>(key, value);
     }
 
     <span class="cm">// ZSet operations</span>
-    <span class="kw">public void</span> <span class="fn">addToZSet</span>(<span class="cl">String</span> key, <span class="cl">Object</span> value, <span class="kw">double</span> score) {
+    <span class="kw">public void</span> <span class="fn">addToZSet</span>(<span class="cl">String</span> key, <span
+                                    class="cl">Object</span> value, <span class="kw">double</span> score) {
         redisTemplate.<span class="fn">opsForZSet</span>().<span class="fn">add</span>(key, value, score);
     }
 }</code></pre>
-          </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
 
-    <!-- ===================== PATTERNS ===================== -->
-    <div id="s-patterns" class="section">
-      <div class="section-header">
-        <div class="section-icon icon-purple">🧩</div>
-        <div><h2>Best Practices</h2><p>Production-ready patterns and things to avoid</p></div>
-      </div>
+        <!-- ===================== PATTERNS ===================== -->
+        <div id="s-patterns" class="section">
+            <div class="section-header">
+                <div class="section-icon icon-purple">🧩</div>
+                <div><h2>Best Practices</h2>
+                    <p>Production-ready patterns and things to avoid</p></div>
+            </div>
 
-      <div class="grid2">
-        <div class="card" style="border-top: 2px solid var(--teal);">
-          <div class="card-title"><div class="dot dot-green"></div>DO ✓</div>
-          <ul style="margin-top:8px">
-            <li>Always use try-with-resources for Jedis</li>
-            <li>Use JedisPool (thread-safe), not Jedis directly</li>
-            <li>Namespace keys: <code style="color:var(--teal)">entity:id:field</code></li>
-            <li>Always set TTL to prevent memory leaks</li>
-            <li>Use Pipeline for bulk operations</li>
-            <li>Use Lua scripts for atomic multi-step ops</li>
-            <li>Monitor with <code style="color:var(--teal)">redis-cli INFO stats</code></li>
-          </ul>
-        </div>
-        <div class="card" style="border-top: 2px solid var(--accent);">
-          <div class="card-title"><div class="dot dot-red"></div>AVOID ✗</div>
-          <ul style="margin-top:8px">
-            <li>Never use <code style="color:var(--accent)">KEYS *</code> in production (blocks server)</li>
-            <li>Don't store huge objects (keep values &lt;100KB)</li>
-            <li>Avoid long-running Lua scripts</li>
-            <li>Don't treat Redis as primary DB for important data</li>
-            <li>Avoid reusing Jedis across threads</li>
-            <li>Don't store sensitive data without encryption</li>
-            <li>Don't ignore connection errors / timeouts</li>
-          </ul>
-        </div>
-      </div>
+            <div class="grid2">
+                <div class="card" style="border-top: 2px solid var(--teal);">
+                    <div class="card-title">
+                        <div class="dot dot-green"></div>
+                        DO ✓
+                    </div>
+                    <ul style="margin-top:8px">
+                        <li>Always use try-with-resources for Jedis</li>
+                        <li>Use JedisPool (thread-safe), not Jedis directly</li>
+                        <li>Namespace keys: <code style="color:var(--teal)">entity:id:field</code></li>
+                        <li>Always set TTL to prevent memory leaks</li>
+                        <li>Use Pipeline for bulk operations</li>
+                        <li>Use Lua scripts for atomic multi-step ops</li>
+                        <li>Monitor with <code style="color:var(--teal)">redis-cli INFO stats</code></li>
+                    </ul>
+                </div>
+                <div class="card" style="border-top: 2px solid var(--accent);">
+                    <div class="card-title">
+                        <div class="dot dot-red"></div>
+                        AVOID ✗
+                    </div>
+                    <ul style="margin-top:8px">
+                        <li>Never use <code style="color:var(--accent)">KEYS *</code> in production (blocks server)</li>
+                        <li>Don't store huge objects (keep values &lt;100KB)</li>
+                        <li>Avoid long-running Lua scripts</li>
+                        <li>Don't treat Redis as primary DB for important data</li>
+                        <li>Avoid reusing Jedis across threads</li>
+                        <li>Don't store sensitive data without encryption</li>
+                        <li>Don't ignore connection errors / timeouts</li>
+                    </ul>
+                </div>
+            </div>
 
-      <h3>Key Patterns Summary</h3>
-      <div class="tags">
-        <span class="tag tag-red">Cache-Aside</span>
-        <span class="tag tag-green">Write-Through</span>
-        <span class="tag tag-blue">Pub/Sub</span>
-        <span class="tag tag-purple">Distributed Lock</span>
-        <span class="tag tag-red">Rate Limiting</span>
-        <span class="tag tag-green">Session Store</span>
-        <span class="tag tag-blue">Leaderboard</span>
-        <span class="tag tag-purple">Task Queue</span>
-      </div>
+            <h3>Key Patterns Summary</h3>
+            <div class="tags">
+                <span class="tag tag-red">Cache-Aside</span>
+                <span class="tag tag-green">Write-Through</span>
+                <span class="tag tag-blue">Pub/Sub</span>
+                <span class="tag tag-purple">Distributed Lock</span>
+                <span class="tag tag-red">Rate Limiting</span>
+                <span class="tag tag-green">Session Store</span>
+                <span class="tag tag-blue">Leaderboard</span>
+                <span class="tag tag-purple">Task Queue</span>
+            </div>
 
-      <div class="code-wrap" style="margin-top:16px">
-        <div class="code-label">Quick Cheatsheet <button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-        <pre><code><span class="cm">// ── EXPIRY CONSTANTS ─────────────────────────────────────</span>
+            <div class="code-wrap" style="margin-top:16px">
+                <div class="code-label">Quick Cheatsheet
+                    <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                </div>
+                <pre><code><span class="cm">// ── EXPIRY CONSTANTS ─────────────────────────────────────</span>
 <span class="kw">int</span> ONE_MINUTE  = <span class="nu">60</span>;
 <span class="kw">int</span> ONE_HOUR    = <span class="nu">3600</span>;
 <span class="kw">int</span> ONE_DAY     = <span class="nu">86400</span>;
@@ -1262,33 +1792,36 @@ docker exec -it redis-dev redis-cli -a yourPassword PING
 <span class="cm">// TTL mykey           – time left before expiry</span>
 <span class="cm">// TYPE mykey          – string/hash/list/set/zset</span>
 <span class="cm">// DEBUG SLEEP 0       – check latency</span></code></pre>
-      </div>
+            </div>
 
-      <div class="info-box tip">
-        <div class="info-icon">🎓</div>
-        <div>Ready for more? Explore <strong style="color:var(--teal)">Redis Streams</strong> for event sourcing, <strong style="color:var(--teal)">RedisJSON</strong> module for native JSON, and <strong style="color:var(--teal)">RedisSearch</strong> for full-text search.</div>
-      </div>
-    </div>
+            <div class="info-box tip">
+                <div class="info-icon">🎓</div>
+                <div>Ready for more? Explore <strong style="color:var(--teal)">Redis Streams</strong> for event
+                    sourcing, <strong style="color:var(--teal)">RedisJSON</strong> module for native JSON, and <strong
+                            style="color:var(--teal)">RedisSearch</strong> for full-text search.
+                </div>
+            </div>
+        </div>
 
-  </main>
+    </main>
 </div>
 
 <script>
-function show(id) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('s-' + id).classList.add('active');
-  event.currentTarget.classList.add('active');
-}
+    function show(id) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById('s-' + id).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
 
-function copyCode(btn) {
-  const pre = btn.closest('.code-wrap').querySelector('pre');
-  const text = pre.innerText;
-  navigator.clipboard.writeText(text).then(() => {
-    btn.textContent = 'copied!';
-    setTimeout(() => btn.textContent = 'copy', 1800);
-  });
-}
+    function copyCode(btn) {
+        const pre = btn.closest('.code-wrap').querySelector('pre');
+        const text = pre.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = 'copied!';
+            setTimeout(() => btn.textContent = 'copy', 1800);
+        });
+    }
 </script>
 </body>
 </html>

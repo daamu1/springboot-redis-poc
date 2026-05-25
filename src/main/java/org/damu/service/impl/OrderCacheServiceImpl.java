@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
@@ -52,8 +53,6 @@ import java.util.Map;
 public class OrderCacheServiceImpl implements OrderCacheService {
     private static final String ORDER_KEY = "order:";
     private static final String ORDER_HASH = "order:hash:";
-    private static final String USER_ORDERS = "user:orders:";
-
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**
@@ -128,7 +127,7 @@ public class OrderCacheServiceImpl implements OrderCacheService {
     public void updateOrderStatus(Long orderId, OrderStatus newStatus) {
         String key = ORDER_HASH + orderId;
         redisTemplate.opsForHash().put(key, "status", newStatus.name());
-        redisTemplate.opsForHash().put(key, "updatedAt", java.time.LocalDateTime.now().toString());
+        redisTemplate.opsForHash().put(key, "updatedAt", LocalDateTime.now().toString());
         log.debug("Updated order:{} status → {}", orderId, newStatus);
         redisTemplate.delete(ORDER_KEY + orderId);
     }

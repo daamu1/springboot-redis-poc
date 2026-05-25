@@ -78,23 +78,12 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public String createAndPersistOrder(Long userId, String customerName) {
         Order order = buildOrder(userId, customerName);
-        // ── UC3: Enqueue for async processing ─────────────────────
-        // Redis List queue — consumer thread processes payment, updates DB.
-        // This keeps the HTTP response fast — we don't block on all that.
         queueService.enqueueOrder(order);
-        // ── UC7: Publish status change event ─────────────────────
-        // Email service, WebSocket gateway, analytics all listen.
-        // OrderService doesn't know or care who — loose coupling.
         pubSubService.publishOrderStatusChange(order, null);
-        // ── UC11: Increment live counters (atomic INCR — no DB write)
         analyticsService.recordOrderPlaced(order);
         analyticsService.trackUniqueCustomer(userId);
-        // ── UC1: Cache full order JSON (dynamic TTL by status) ────
         cacheService.cacheOrder(order);
-        // ── UC2: Store as Hash for partial field reads ────────────
-        // Status-tracking page only needs 2 fields — HGET, not full JSON
         cacheService.saveOrderAsHash(order);
-        // ── UC9: Update customer spend leaderboard ────────────────
         analyticsService.recordOrderForLeaderboard(order);
         return order.getOrderNumber();
     }
@@ -135,6 +124,7 @@ public class OrderServiceImpl implements OrderService {
         pubSubService.publishOrderStatusChange(order, oldStatus);
         log.info("Order {} status: {} → {}", orderId, oldStatus, newStatus);
     }
+
     @Override
     public Map<String, Object> getQueueDepth() {
         return Map.of("pending", queueService.getQueueDepth(), "scheduled", queueService.getScheduledCount());
@@ -170,6 +160,7 @@ public class OrderServiceImpl implements OrderService {
     public void clearCart(Long userId) {
         pubSubService.clearCart(userId);
     }
+
     /**
      * Create auth token post-login. Stored in Redis Hash, 24h sliding TTL.
      */
@@ -221,7 +212,6 @@ public class OrderServiceImpl implements OrderService {
         order.setShippingAddress("123 Main St");
         order.setCity("Delhi");
         order.setPincode("110001");
-
         OrderItem item = new OrderItem(101L, "Laptop Stand", 2, new BigDecimal("749.00"));
         order.getItems().add(item);
         order.setDiscountAmount(BigDecimal.ZERO);

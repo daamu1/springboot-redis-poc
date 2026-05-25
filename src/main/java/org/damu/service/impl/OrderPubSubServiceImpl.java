@@ -220,26 +220,4 @@ public class OrderPubSubServiceImpl implements OrderPubSubService {
         redisTemplate.delete("auth:token:" + token);
         log.debug("Token revoked: {}", token.substring(0, 8));
     }
-
-    /**
-     * Handler for SHIPPED orders — triggers email + tracking notification
-     */
-    private static class OrderShippedHandler implements MessageListener {
-        @Override
-        public void onMessage(Message message, byte[] pattern) {
-            String payload = new String(message.getBody());
-            log.info("[SHIPPED HANDLER] Received: {}", payload);
-
-        }
-    }
-
-    /**
-     * Audit handler — logs all order events for compliance
-     */
-    private static class OrderAuditHandler implements MessageListener {
-        @Override
-        public void onMessage(Message message, byte[] pattern) {
-            log.info("[AUDIT] channel={} | payload={}", new String(message.getChannel()), new String(message.getBody()));
-        }
-    }
 }

@@ -60,8 +60,8 @@ public class OrderAnalyticsServiceImpl implements OrderAnalyticsService {
     /**
      * Get Top N customers by total spend.
      * <p>
-     * ZREVRANGE → highest score first (DESC order)
-     * WITHSCORES → include the actual score value
+     * REARRANGER → highest score first (DESC order)
+     * WITHS CORES → include the actual score value
      * <p>
      * Returns: [{customer: "Ravi#123", spend: 49850.00}, ...]
      */
