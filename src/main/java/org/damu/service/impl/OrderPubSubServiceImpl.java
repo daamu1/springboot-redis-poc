@@ -2,7 +2,9 @@ package org.damu.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.RequiredArgsConstructor;
 import org.damu.model.Order;
+import org.damu.model.OrderStatus;
 import org.damu.service.OrderPubSubService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,24 +52,14 @@ import java.util.UUID;
  * order:*                → wildcard pattern subscription
  */
 @Service
+@RequiredArgsConstructor
 public class OrderPubSubServiceImpl implements OrderPubSubService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderPubSubServiceImpl.class);
-
-    // Channel patterns
-    private static final String CH_ORDER_STATUS = "order:status:";  // + status name
-    private static final String CH_ORDER_USER = "order:user:";    // + userId
-    private static final String CH_ALL_ORDERS = "order:*";        // wildcard
-    // Log reference for OrderShippedHandler and OrderAuditHandler
-    private static final Logger log2 = LoggerFactory.getLogger("OrderEventHandlers");
-    @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
-
-    // ══════════════════════════════════════════════════════════════
-    //  USE CASE 7A — Publisher: Order Status Events
-    // ══════════════════════════════════════════════════════════════
-    @Autowired
-    private ObjectMapper objectMapper;
+    private static final String CH_ORDER_STATUS = "order:status:";
+    private static final String CH_ORDER_USER = "order:user:";
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     /**
      * Publish order status change event to Redis channel.
@@ -82,9 +74,8 @@ public class OrderPubSubServiceImpl implements OrderPubSubService {
      * the order service knowing about any of them. Loose coupling!
      */
     @Override
-    public void publishOrderStatusChange(Order order, Order.OrderStatus oldStatus) {
+    public void publishOrderStatusChange(Order order, OrderStatus oldStatus) {
         try {
-            // Build event payload
             Map<String, Object> event = new HashMap<>();
             event.put("orderId", order.getId());
             event.put("orderNumber", order.getOrderNumber());
@@ -95,12 +86,8 @@ public class OrderPubSubServiceImpl implements OrderPubSubService {
             event.put("amount", order.getFinalAmount());
 
             String json = objectMapper.writeValueAsString(event);
-
-            // Publish to status-specific channel (e.g., order:status:SHIPPED)
             String statusChannel = CH_ORDER_STATUS + order.getStatus().name();
             Long subscriberCount1 = redisTemplate.convertAndSend(statusChannel, json);
-
-            // Also publish to user-specific channel (e.g., order:user:123)
             String userChannel = CH_ORDER_USER + order.getUserId();
             Long subscriberCount2 = redisTemplate.convertAndSend(userChannel, json);
 
@@ -108,14 +95,8 @@ public class OrderPubSubServiceImpl implements OrderPubSubService {
 
         } catch (Exception e) {
             log.error("Failed to publish order event for order {}", order.getId(), e);
-            // IMPORTANT: Don't let pub/sub failure break the main flow!
-            // Pub/Sub is auxiliary — the order is already saved to DB.
         }
     }
-
-    // ══════════════════════════════════════════════════════════════
-    //  USE CASE 7B — Subscriber Configuration (in a @Configuration class)
-    // ══════════════════════════════════════════════════════════════
 
     /**
      * Publish cache invalidation — broadcast to ALL servers.
@@ -151,12 +132,8 @@ public class OrderPubSubServiceImpl implements OrderPubSubService {
 
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(factory);
-
-        // Handler for order shipped events
         container.addMessageListener(new MessageListenerAdapter(new OrderShippedHandler()), new ChannelTopic(CH_ORDER_STATUS + "SHIPPED")  // exact channel
         );
-
-        // Handler for ALL order events (wildcard pattern)
         container.addMessageListener(new MessageListenerAdapter(new OrderAuditHandler()), new PatternTopic("order:*")  // matches order:status:*, order:user:*, etc.
         );
 
@@ -186,15 +163,9 @@ public class OrderPubSubServiceImpl implements OrderPubSubService {
         } else {
             redisTemplate.opsForHash().put(cartKey, field, quantity);
         }
-
-        // Sliding TTL — cart stays alive as long as user is active
         redisTemplate.expire(cartKey, java.time.Duration.ofDays(7));
         log.debug("Cart updated for user {} → product {} qty={}", userId, productId, quantity);
     }
-
-    // ══════════════════════════════════════════════════════════════
-    //  USE CASE 8 — Session Store (Cart + Auth Token)
-    // ══════════════════════════════════════════════════════════════
 
     @Override
     public Map<Object, Object> getCart(Long userId) {
@@ -227,11 +198,9 @@ public class OrderPubSubServiceImpl implements OrderPubSubService {
         session.put("userId", userId);
         session.put("role", role);
         session.put("createdAt", System.currentTimeMillis());
-        session.put("ip", "127.0.0.1"); // in real app, get from request
-
+        session.put("ip", "127.0.0.1");
         redisTemplate.opsForHash().putAll(key, session);
         redisTemplate.expire(key, java.time.Duration.ofHours(24));
-
         log.debug("Auth token created for user {} (expires 24h)", userId);
         return token;
     }
@@ -241,9 +210,7 @@ public class OrderPubSubServiceImpl implements OrderPubSubService {
         String key = "auth:token:" + token;
         Map<Object, Object> session = redisTemplate.opsForHash().entries(key);
 
-        if (session.isEmpty()) return null; // expired or invalid
-
-        // Sliding session — reset TTL on activity
+        if (session.isEmpty()) return null;
         redisTemplate.expire(key, java.time.Duration.ofHours(24));
         return session;
     }
@@ -262,9 +229,7 @@ public class OrderPubSubServiceImpl implements OrderPubSubService {
         public void onMessage(Message message, byte[] pattern) {
             String payload = new String(message.getBody());
             log.info("[SHIPPED HANDLER] Received: {}", payload);
-            // → Send "Your order has been shipped!" email
-            // → Update tracking page
-            // → Notify delivery partner API
+
         }
     }
 
@@ -275,8 +240,6 @@ public class OrderPubSubServiceImpl implements OrderPubSubService {
         @Override
         public void onMessage(Message message, byte[] pattern) {
             log.info("[AUDIT] channel={} | payload={}", new String(message.getChannel()), new String(message.getBody()));
-            // → Write to audit_log table
-            // → Send to analytics pipeline
         }
     }
 }

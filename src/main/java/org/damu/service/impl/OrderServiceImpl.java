@@ -5,7 +5,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.damu.exception.RateLimitExceededException;
 import org.damu.model.Order;
-import org.damu.model.Order.OrderStatus;
+import org.damu.model.OrderItem;
+import org.damu.model.OrderStatus;
 import org.damu.model.PlaceOrderResult;
 import org.damu.service.*;
 import org.springframework.stereotype.Service;
@@ -221,7 +222,7 @@ public class OrderServiceImpl implements OrderService {
         order.setCity("Delhi");
         order.setPincode("110001");
 
-        Order.OrderItem item = new Order.OrderItem(101L, "Laptop Stand", 2, new BigDecimal("749.00"));
+        OrderItem item = new OrderItem(101L, "Laptop Stand", 2, new BigDecimal("749.00"));
         order.getItems().add(item);
         order.setDiscountAmount(BigDecimal.ZERO);
         order.recalculate();

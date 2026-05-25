@@ -44,12 +44,7 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class OrderRateLimiterServiceImpl implements OrderRateLimiterService {
     private static final String RATE_KEY = "rate:order:";
-    private static final String LOCK_KEY = "lock:order:";
-
     private final RedisTemplate<String, Object> redisTemplate;
-    private int ttlSeconds;
-    private int maxRetries;
-    private long retryDelayMs;
 
 
     /**
@@ -82,7 +77,7 @@ public class OrderRateLimiterServiceImpl implements OrderRateLimiterService {
         }
         boolean allowed = count <= maxPerHour;
         if (!allowed) {
-            log.warn("Rate limit exceeded for user {} | count={} | limit={}", userId, count, maxPerHour);
+            log.info("Rate limit exceeded for user {} | count={} | limit={}", userId, count, maxPerHour);
         }
         return allowed;
     }

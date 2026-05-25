@@ -3,6 +3,7 @@ package org.damu.service.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.damu.model.Order;
+import org.damu.model.OrderStatus;
 import org.damu.service.OrderCacheService;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -85,7 +86,6 @@ public class OrderCacheServiceImpl implements OrderCacheService {
         };
 
         redisTemplate.opsForValue().set(key, order, ttl);
-        log.debug("Cached order:{} with TTL={}", id, ttl);
         return order;
     }
 
@@ -125,7 +125,7 @@ public class OrderCacheServiceImpl implements OrderCacheService {
      * With Hash: just HSET order:hash:1001 status SHIPPED — one command, done.
      */
     @Override
-    public void updateOrderStatus(Long orderId, Order.OrderStatus newStatus) {
+    public void updateOrderStatus(Long orderId, OrderStatus newStatus) {
         String key = ORDER_HASH + orderId;
         redisTemplate.opsForHash().put(key, "status", newStatus.name());
         redisTemplate.opsForHash().put(key, "updatedAt", java.time.LocalDateTime.now().toString());
@@ -146,7 +146,7 @@ public class OrderCacheServiceImpl implements OrderCacheService {
     @Override
     public void cacheOrder(Order order) {
         String key = ORDER_KEY + order.getId();
-        if (order.getStatus() == Order.OrderStatus.PENDING) {
+        if (order.getStatus() ==OrderStatus.PENDING) {
             log.debug("Skipping cache for PENDING order:{}", order.getId());
             return;
         }
@@ -166,7 +166,7 @@ public class OrderCacheServiceImpl implements OrderCacheService {
         Order order = Order.create(100L, "Ravi Kumar", "ravi@example.com");
         order.setId(id);
         order.setOrderNumber("ORD-" + id);
-        order.setStatus(Order.OrderStatus.DELIVERED);
+        order.setStatus(OrderStatus.DELIVERED);
         order.setFinalAmount(new BigDecimal("1499.00"));
         order.setPaid(true);
         return order;

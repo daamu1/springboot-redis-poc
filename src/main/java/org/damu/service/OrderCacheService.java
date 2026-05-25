@@ -1,6 +1,7 @@
 package org.damu.service;
 
 import org.damu.model.Order;
+import org.damu.model.OrderStatus;
 
 
 public interface OrderCacheService {
@@ -8,7 +9,7 @@ public interface OrderCacheService {
 
     void saveOrderAsHash(Order order);
 
-    void updateOrderStatus(Long orderId, Order.OrderStatus newStatus);
+    void updateOrderStatus(Long orderId, OrderStatus newStatus);
 
     Object getOrderStatusOnly(Long orderId);
 

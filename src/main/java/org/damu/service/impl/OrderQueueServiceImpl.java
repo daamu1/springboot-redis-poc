@@ -41,20 +41,14 @@ import java.util.concurrent.TimeUnit;
 public class OrderQueueServiceImpl implements OrderQueueService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderQueueServiceImpl.class);
-
-    // Queue names — treat these as constants, never hardcode inline
     private static final String QUEUE_PENDING = "queue:orders:pending";
     private static final String QUEUE_PROCESSING = "queue:orders:processing";
-    private static final String QUEUE_PRIORITY = "queue:orders:priority";     // ZSet
-    private static final String QUEUE_SCHEDULED = "queue:orders:scheduled";    // ZSet (score=timestamp)
-    private static final String QUEUE_DEAD_LETTER = "queue:orders:failed";       // Failed orders
+    private static final String QUEUE_PRIORITY = "queue:orders:priority";
+    private static final String QUEUE_SCHEDULED = "queue:orders:scheduled";
+    private static final String QUEUE_DEAD_LETTER = "queue:orders:failed";
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
-
-    // ══════════════════════════════════════════════════════════════
-    //  USE CASE 3 — FIFO Queue using Redis LIST
-    // ══════════════════════════════════════════════════════════════
 
     /**
      * ENQUEUE — Producer pushes order to LEFT end of list.
@@ -104,8 +98,6 @@ public class OrderQueueServiceImpl implements OrderQueueService {
 
         if (order != null) {
             log.info("Blocking dequeue got order: {}", order.getOrderNumber());
-            // Move to "processing" queue — RELIABLE QUEUE PATTERN
-            // If consumer crashes, order is not lost — it's in processing queue
             redisTemplate.opsForList().leftPush(QUEUE_PROCESSING, order);
         }
         return order;
@@ -128,7 +120,6 @@ public class OrderQueueServiceImpl implements OrderQueueService {
      */
     @Override
     public Order reliableDequeue() {
-        // ATOMIC: pop from pending → push to processing (one round-trip)
         Order order = (Order) redisTemplate.opsForList().rightPopAndLeftPush(QUEUE_PENDING, QUEUE_PROCESSING);
 
         if (order != null) {
@@ -143,8 +134,6 @@ public class OrderQueueServiceImpl implements OrderQueueService {
      */
     @Override
     public void acknowledgeOrder(Order order) {
-        // LREM: remove matching elements from list
-        // args: key, count(0=all), value
         redisTemplate.opsForList().remove(QUEUE_PROCESSING, 1, order);
         log.info("ACK: order {} processed successfully", order.getOrderNumber());
     }
@@ -173,9 +162,6 @@ public class OrderQueueServiceImpl implements OrderQueueService {
         return redisTemplate.opsForList().size(QUEUE_PENDING);
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  USE CASE 4A — Priority Queue using ZSet
-    // ══════════════════════════════════════════════════════════════
 
     /**
      * ZSet score = priority level.
@@ -218,13 +204,9 @@ public class OrderQueueServiceImpl implements OrderQueueService {
      */
     @Override
     public Set<Object> getUrgentOrders() {
-        // Get all orders with priority score == 3 (urgent)
         return redisTemplate.opsForZSet().rangeByScore(QUEUE_PRIORITY, 3, 3);
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  USE CASE 4B — Delayed / Scheduled Queue using ZSet
-    // ══════════════════════════════════════════════════════════════
 
     /**
      * SCHEDULED QUEUE — one of the most powerful Redis patterns.

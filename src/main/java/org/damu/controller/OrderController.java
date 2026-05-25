@@ -2,7 +2,7 @@ package org.damu.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.damu.model.Order;
-import org.damu.model.Order.OrderStatus;
+import org.damu.model.OrderStatus;
 import org.damu.model.PlaceOrderResult;
 import org.damu.service.OrderService;
 import org.springframework.http.HttpStatus;

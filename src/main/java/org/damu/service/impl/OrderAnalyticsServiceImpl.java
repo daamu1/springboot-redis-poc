@@ -40,7 +40,7 @@ public class OrderAnalyticsServiceImpl implements OrderAnalyticsService {
     /**
      * Record order completion — update customer leaderboard.
      * <p>
-     * ZINCRBY is the key command:
+     * ZINCKING is the key command:
      * - If customer exists → add amount to existing score
      * - If customer is new → create with score = amount
      * - O(log N) — doesn't slow down with 1M customers

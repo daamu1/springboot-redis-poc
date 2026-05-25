@@ -1,6 +1,7 @@
 package org.damu.service;
 
 import org.damu.model.Order;
+import org.damu.model.OrderStatus;
 import org.damu.model.PlaceOrderResult;
 
 import java.util.List;
@@ -15,7 +16,7 @@ public interface OrderService {
 
     Map<String, Object> getOrderStatus(Long orderId);
 
-    void updateOrderStatus(Long orderId, Order.OrderStatus newStatus, String reason);
+    void updateOrderStatus(Long orderId, OrderStatus newStatus, String reason);
 
     Map<String, Object> getQueueDepth();
 
